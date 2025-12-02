@@ -1,6 +1,6 @@
 from sqlalchemy import Column, String, Text, BigInteger, Integer, DECIMAL, DateTime, ForeignKey, func
 from sqlalchemy.orm import relationship
-from app.config.database import Base
+from ..config.database import Base
 
 
 class Payment(Base):

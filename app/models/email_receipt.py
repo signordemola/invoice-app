@@ -1,5 +1,5 @@
 from sqlalchemy import Column, String, BigInteger, DateTime, func
-from app.config.database import Base
+from ..config.database import Base
 
 
 class EmailReceipt(Base):

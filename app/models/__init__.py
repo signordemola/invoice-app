@@ -1,12 +1,12 @@
-from app.models.user import User
-from app.models.client import Client
-from app.models.invoice import Invoice
-from app.models.item import Item
-from app.models.payment import Payment
-from app.models.expense import Expense
-from app.models.email_queue import EmailQueue
-from app.models.email_receipt import EmailReceipt
-from app.models.recurrent_bill import RecurrentBill
+from .user import User
+from .client import Client
+from .invoice import Invoice
+from .item import Item
+from .payment import Payment
+from .expense import Expense
+from .email_queue import EmailQueue
+from .email_receipt import EmailReceipt
+from .recurrent_bill import RecurrentBill
 
 __all__ = [
     "User",

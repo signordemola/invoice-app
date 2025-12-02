@@ -7,7 +7,7 @@ class ClientBase(BaseModel):
 
     name: str = Field(..., min_length=1, max_length=150)
     address: str = Field(..., min_length=1)
-    email = EmailStr
+    email: EmailStr
     phone: str = Field(..., min_length=3, max_length=25)
     post_addr: str = Field(..., min_length=1, max_length=20)
 

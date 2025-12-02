@@ -1,6 +1,6 @@
 from sqlalchemy import Column, String, Text, BigInteger, Integer, DateTime, Boolean, JSON, ForeignKey, func
 from sqlalchemy.orm import relationship
-from app.config.database import Base
+from ..config.database import Base
 
 
 class Invoice(Base):

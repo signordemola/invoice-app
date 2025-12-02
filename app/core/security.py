@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 from passlib.context import CryptContext
 import jwt
-from app.config.settings import settings
+from ..config.settings import settings
 
 pwd_context = CryptContext(
     schemes=['argon2'],

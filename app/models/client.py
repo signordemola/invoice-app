@@ -1,6 +1,6 @@
 from sqlalchemy import BigInteger, Column, DateTime, String, Text, func
 from sqlalchemy.orm import relationship
-from app.config.database import Base
+from ..config.database import Base
 
 
 class Client(Base):

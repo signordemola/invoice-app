@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field, ConfigDict, field_validator
 from datetime import datetime
-from app.schemas.item import ItemCreate, ItemResponse
+from .item import ItemCreate, ItemResponse
 
 
 class InvoiceBase(BaseModel):

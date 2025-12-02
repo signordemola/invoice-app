@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     # Application
     APP_NAME: str = Field(default="Invoice Management System")
     APP_VERSION: str = Field(default="1.0.0")
+    API_VERSION: str = Field(default="/api/v1/")
     DEBUG: bool = Field(default=False)
     ENV: str = Field(default="development")
     PORT: int = Field(default=8000)
@@ -35,8 +36,9 @@ class Settings(BaseSettings):
         extra="ignore"
     )
 
-    @computed_field(return_type=list[str])
-    def cors_origins_list(self):
+    @computed_field
+    @property
+    def cors_origins_list(self)-> list[str]:
         """Parse CORS origins from comma-separated string"""
         if self.ENV.lower() == "production":
             return ["https://yourdomain.com"]

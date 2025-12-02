@@ -1,5 +1,5 @@
 from sqlalchemy import Column, String, BigInteger, Integer, DateTime, func
-from app.config.database import Base
+from ..config.database import Base
 
 
 class EmailQueue(Base):

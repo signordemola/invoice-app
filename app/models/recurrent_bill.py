@@ -1,11 +1,11 @@
 from sqlalchemy import Column, Integer, String, BigInteger, DECIMAL, DateTime, ForeignKey, Index, func
 from sqlalchemy.orm import relationship
-from app.config.database import Base
+from ..config.database import Base
 
 
 class RecurrentBill(Base):
     __tablename__ = "recurrent_bill"
-    
+
     __table_args__ = (
         Index('recurrent_bill_args_req', 'id', 'client_id'),
     )

@@ -1,5 +1,5 @@
 from sqlalchemy import DECIMAL, BigInteger, Column, ForeignKey, Integer, String
-from app.config.database import Base
+from ..config.database import Base
 
 
 from sqlalchemy.orm import relationship

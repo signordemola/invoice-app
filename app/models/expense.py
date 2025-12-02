@@ -1,5 +1,5 @@
 from sqlalchemy import Column, String, Text, BigInteger, Integer, DECIMAL, DateTime, func
-from app.config.database import Base
+from ..config.database import Base
 
 
 class Expense(Base):
