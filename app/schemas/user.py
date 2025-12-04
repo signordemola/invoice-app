@@ -7,12 +7,12 @@ class UserBase(BaseModel):
 
 
 class UserCreate(UserBase):
-    password: str = Field(..., min_length=8, max_length=150)
+    password: str = Field(..., min_length=8, max_length=12)
 
 
 class UserUpdate(BaseModel):
     username: str | None = Field(None, min_length=3, max_length=20)
-    password: str | None = Field(None, min_length=8, max_length=150)
+    password: str | None = Field(None, min_length=8, max_length=12)
     is_active: bool | None = None
 
 

@@ -42,7 +42,7 @@ def login_user(username: str, password: str, db: Session) -> tuple[str, User]:
     return token, user
 
 
-def register_user(username: str, password: str, db: Session) -> str:
+def register_user(username: str, password: str, db: Session) -> User:
     """Register a new user account"""
 
     existing_user = db.query(User).filter(User.username == username).first()
@@ -60,7 +60,7 @@ def register_user(username: str, password: str, db: Session) -> str:
     return new_user
 
 
-def logout_user() -> JSONResponse:
+def logout_user() -> dict:
     """Clear the authentication cookie and log the user out."""
 
     response = JSONResponse(
@@ -73,4 +73,4 @@ def logout_user() -> JSONResponse:
         samesite="strict"
     )
 
-    return response
+    return {"message": "Logged out successfully!"}

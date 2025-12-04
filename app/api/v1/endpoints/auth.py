@@ -14,7 +14,7 @@ router = APIRouter()
 
 
 @router.post('/login')
-def login(response: Response, credentials: LoginRequest, db: Session = Depends(get_db)):
+def login_route(response: Response, credentials: LoginRequest, db: Session = Depends(get_db)):
     """Login & get access token"""
 
     try:
@@ -51,13 +51,13 @@ def login(response: Response, credentials: LoginRequest, db: Session = Depends(g
 
     except InactiveAccountError as error:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
+            status_code=status.HTTP_401_UNAUTHORIZED,
             detail=str(error)
         )
 
 
 @router.post('/register', response_model=UserResponse, status_code=status.HTTP_201_CREATED)
-def register(user_data: UserCreate, db: Session = Depends(get_db)):
+def register_route(user_data: UserCreate, db: Session = Depends(get_db)):
     """Register a new user"""
 
     try:
@@ -75,6 +75,6 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)):
         )
 
 
-@router.post('/logout', status_code=status.HTTP_204_NO_CONTENT)
-def logout():
+@router.post('/logout')
+def logout_route():
     return logout_user()
