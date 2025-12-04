@@ -1,8 +1,11 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
+
 
 from .config import settings
 from .api.v1 import api_router
+
 
 app = FastAPI(
     title=settings.APP_NAME,
@@ -35,4 +38,5 @@ def health_check():
     return {"status": "healthy"}
 
 
+# API ENDPOINTS
 app.include_router(api_router, prefix='/api/v1')
