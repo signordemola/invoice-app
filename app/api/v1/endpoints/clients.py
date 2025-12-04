@@ -6,7 +6,7 @@ from ....config.database import get_db
 from ...dependencies import get_current_user
 from ....models.client import Client
 from ....models.user import User
-from ....schemas.client import ClientCreate, ClientUpdate, ClientResponse
+from ....schemas.client import ClientCreate, ClientUpdate, ClientResponse, ClientsResponse
 
 router = APIRouter()
 
@@ -32,7 +32,7 @@ def add_client(client_data: ClientCreate, db: Session = Depends(get_db), current
     return new_client
 
 
-@router.get('/', response_model=dict)
+@router.get('/', response_model=ClientsResponse)
 def get_clients(page: int = 1,
                 limit: int = 10,
                 db: Session = Depends(get_db),

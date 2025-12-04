@@ -23,7 +23,6 @@ class ClientUpdate(BaseModel):
 
     name: str | None = Field(None, min_length=1, max_length=150)
     address: str | None = Field(None, min_length=1)
-    email: EmailStr | None = None
     phone: str | None = Field(None, min_length=3, max_length=25)
     post_addr: str | None = Field(None, min_length=1, max_length=20)
 
@@ -34,3 +33,15 @@ class ClientResponse(ClientBase):
     id: int
     date_created: datetime
     model_config = ConfigDict(from_attributes=True)
+
+
+class Pagination(BaseModel):
+    page: int
+    limit: int
+    total: int
+    total_pages: int
+
+
+class ClientsResponse(BaseModel):
+    clients: list[ClientResponse]
+    pagination: Pagination

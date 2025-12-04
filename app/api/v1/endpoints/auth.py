@@ -1,9 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.orm import Session
 
-from ....schemas.auth import LoginRequest, TokenResponse
+from app.config import settings
+
+from ....schemas.auth import LoginRequest
 from ....config.database import get_db
-from ....services.auth_service import AuthenticationError, InactiveAccountError, UserExistsError, login_user, register_user
+from ....services.auth_service import AuthenticationError, InactiveAccountError, UserExistsError, login_user, logout_user, register_user
 from ....models.user import User
 from ....schemas.user import UserCreate, UserResponse
 
@@ -11,17 +13,34 @@ from ....schemas.user import UserCreate, UserResponse
 router = APIRouter()
 
 
-@router.post('/login', response_model=TokenResponse)
-def login(credentials: LoginRequest, db: Session = Depends(get_db)):
+@router.post('/login')
+def login(response: Response, credentials: LoginRequest, db: Session = Depends(get_db)):
     """Login & get access token"""
 
     try:
-        token = login_user(
+        token, user = login_user(
             username=credentials.username,
             password=credentials.password,
             db=db
         )
-        return TokenResponse(access_token=token)
+
+        response.set_cookie(
+            key=settings.COOKIE_NAME,
+            value=token,
+            httponly=settings.COOKIE_HTTPONLY,
+            secure=settings.COOKIE_SECURE,
+            samesite=settings.COOKIE_SAMESITE,
+            max_age=settings.cookie_max_age,
+            path="/"
+        )
+
+        return {
+            "message": "Login successful!",
+            "user": {
+                "id": user.id,
+                "username": user.username
+            }
+        }
 
     except AuthenticationError as error:
         raise HTTPException(
@@ -54,3 +73,8 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)):
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(error)
         )
+
+
+@router.post('/logout', status_code=status.HTTP_204_NO_CONTENT)
+def logout():
+    return logout_user()

@@ -1,4 +1,8 @@
+from fastapi import status
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
+
+from app.config import settings
 from ..models.user import User
 from ..core.security import hash_password, verify_password, create_access_token
 
@@ -23,7 +27,7 @@ class UserExistsError(AuthServiceError):
     pass
 
 
-def login_user(username: str, password: str, db: Session) -> str:
+def login_user(username: str, password: str, db: Session) -> tuple[str, User]:
     """Authenticate user and return JWT token"""
 
     user = db.query(User).filter(User.username == username).first()
@@ -35,7 +39,7 @@ def login_user(username: str, password: str, db: Session) -> str:
         raise InactiveAccountError("Account is inactive!")
 
     token = create_access_token(data={"sub": str(user.id)})
-    return token
+    return token, user
 
 
 def register_user(username: str, password: str, db: Session) -> str:
@@ -54,3 +58,19 @@ def register_user(username: str, password: str, db: Session) -> str:
     db.refresh(new_user)
 
     return new_user
+
+
+def logout_user() -> JSONResponse:
+    """Clear the authentication cookie and log the user out."""
+
+    response = JSONResponse(
+        status_code=status.HTTP_204_NO_CONTENT, content=None)
+
+    response.delete_cookie(
+        key=settings.COOKIE_NAME,
+        httponly=True,
+        secure=settings.COOKIE_SECURE,
+        samesite="strict"
+    )
+
+    return response
