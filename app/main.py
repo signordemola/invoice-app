@@ -1,5 +1,6 @@
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import HTMLResponse
 
 
@@ -12,6 +13,11 @@ app = FastAPI(
     version=settings.APP_VERSION,
     debug=settings.DEBUG,
     docs_url=settings.API_VERSION
+)
+
+app.add_middleware(
+    TrustedHostMiddleware,
+    allowed_hosts=["yourdomain.com"] if settings.ENV == "production" else ["*"]
 )
 
 app.add_middleware(

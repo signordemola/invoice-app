@@ -1,4 +1,3 @@
-from math import ceil
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
@@ -6,7 +5,6 @@ from app.services.client_service import ClientEmailExistsError, ClientNotFoundEr
 
 from ....config.database import get_db
 from ...dependencies import get_current_user
-from ....models.client import Client
 from ....models.user import User
 from ....schemas.client import ClientCreate, ClientUpdate, ClientResponse, ClientsResponse
 

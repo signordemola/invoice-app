@@ -1,6 +1,11 @@
-from sqlalchemy import BigInteger, Column, DateTime, String, Text, func
-from sqlalchemy.orm import relationship
+from datetime import datetime
+from typing import TYPE_CHECKING
+from sqlalchemy import BigInteger, DateTime, String, Text, func
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from ..config.database import Base
+
+if TYPE_CHECKING:
+    from .invoice import Invoice
 
 
 class Client(Base):
@@ -8,17 +13,20 @@ class Client(Base):
 
     __tablename__ = 'client'
 
-    id = Column(BigInteger, primary_key=True, index=True)
-    name = Column(Text, nullable=False)
-    address = Column(Text, nullable=False)
-    email = Column(String(150), nullable=False, unique=True, index=True)
-    phone = Column(String(25), nullable=False)
-    post_addr = Column(String(20), nullable=False)
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, index=True)
+    name: Mapped[str] = mapped_column(Text, index=True)
+    address: Mapped[str] = mapped_column(Text)
+    email: Mapped[str] = mapped_column(String(150), unique=True, index=True)
+    phone: Mapped[str] = mapped_column(String(25), index=True)
+    post_addr: Mapped[str] = mapped_column(String(20))
+    date_created: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now())
 
-    date_created = Column(DateTime(), nullable=False,
-                          server_default=func.now())
-
-    invoices = relationship("Invoice", back_populates="client")
+    invoices: Mapped[list["Invoice"]] = relationship(
+        back_populates="client",
+        cascade="all, delete-orphan",
+        passive_deletes=True
+    )
 
     def __repr__(self) -> str:
         """String representation for debugging"""

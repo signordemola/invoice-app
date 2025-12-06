@@ -1,3 +1,4 @@
+from typing import Literal
 from pydantic import BaseModel, Field, ConfigDict, field_validator
 from datetime import datetime
 from .item import ItemCreate, ItemResponse
@@ -22,15 +23,18 @@ class InvoiceCreate(InvoiceBase):
 
 
 class InvoiceUpdate(BaseModel):
-    invoice_no: str | None = Field(None, min_length=1, max_length=30)
     invoice_due: datetime | None = None
-    client_type: int | None = Field(None, ge=1, le=3)
     currency: int | None = Field(None, ge=1, le=4)
-    disc_type: str | None = Field(None, max_length=10)
+    disc_type: Literal["fixed", "percent", "percentage"] | None = None
     disc_value: str | None = Field(None, max_length=10)
-    disc_desc: str | None = None
+    disc_desc: str | None = Field(None, max_length=500)
     send_reminders: bool | None = None
-    reminder_frequency: int | None = None
+    reminder_frequency: int | None = Field(
+        None,
+        ge=1,
+        le=7,
+        description="Days between reminders (1-7)"
+    )
 
 
 class InvoiceResponse(InvoiceBase):
@@ -41,3 +45,14 @@ class InvoiceResponse(InvoiceBase):
     items: list[ItemResponse] = []
 
     model_config = ConfigDict(from_attributes=True)
+
+class PaginationInfo(BaseModel):
+    page: int
+    limit: int
+    total: int
+    total_pages: int
+
+
+class InvoicePaginatedResponse(BaseModel):
+    invoices: list[InvoiceResponse]
+    pagination: PaginationInfo
