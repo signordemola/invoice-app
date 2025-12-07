@@ -1,4 +1,6 @@
-from fastapi import APIRouter, HTTPException, Query, status, Depends
+from fastapi import APIRouter, HTTPException, Query, Request, status, Depends
+from fastapi.responses import HTMLResponse
+from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import get_current_user
@@ -8,6 +10,20 @@ from app.services.invoice_service import ClientNotFoundError, InvalidInvoiceData
 
 
 router = APIRouter()
+
+templates = Jinja2Templates(directory="app/templates")
+
+
+@router.get("/dashboard", response_class=HTMLResponse)
+def list_invoices(request: Request, db: Session = Depends(get_db)):
+    result = get_invoices_paginated(
+        db, page=1, limit=100)
+
+    invoices = result["invoices"]
+
+    return templates.TemplateResponse(
+        "invoices.html",
+        {"request": request, "invoices": invoices})
 
 
 @router.post('/', response_model=InvoiceResponse, status_code=status.HTTP_201_CREATED)
