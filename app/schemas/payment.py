@@ -2,13 +2,17 @@ from pydantic import BaseModel, Field, ConfigDict
 from decimal import Decimal
 from datetime import datetime
 
+from ..models.payment import PaymentMode, PaymentStatus
+
 
 class PaymentBase(BaseModel):
     client_name: str = Field(..., min_length=1, max_length=150)
-    payment_mode: int = Field(..., ge=0, le=4)
+    payment_mode: PaymentMode
+    payment_date: datetime
     amount_paid: Decimal = Field(..., gt=0, decimal_places=2)
+    reference_number: str | None = Field(None, max_length=100)
     payment_desc: str | None = None
-    status: int = Field(..., ge=1, le=2)
+    status: PaymentStatus
 
 
 class PaymentCreate(PaymentBase):
@@ -17,16 +21,15 @@ class PaymentCreate(PaymentBase):
 
 class PaymentUpdate(BaseModel):
     client_name: str | None = Field(None, min_length=1, max_length=150)
-    payment_mode: int | None = Field(None, ge=0, le=4)
+    payment_mode: PaymentMode | None = None
     amount_paid: Decimal | None = Field(None, gt=0, decimal_places=2)
     payment_desc: str | None = None
-    status: int | None = Field(None, ge=1, le=2)
+    status: PaymentStatus | None = None
 
 
 class PaymentResponse(PaymentBase):
     id: int
     date_created: datetime
-    balance: Decimal | None
     invoice_id: int
     view_count: int
     last_view: datetime | None
