@@ -1,6 +1,8 @@
 from typing import Literal
 from pydantic import BaseModel, Field, ConfigDict, field_validator
 from datetime import datetime
+
+from ..models.invoice import InvoiceStatus
 from .item import ItemCreate, ItemResponse
 
 
@@ -25,6 +27,7 @@ class InvoiceCreate(InvoiceBase):
 class InvoiceUpdate(BaseModel):
     invoice_due: datetime | None = None
     currency: int | None = Field(None, ge=1, le=4)
+    status: InvoiceStatus | None = None
     disc_type: Literal["fixed", "percent", "percentage"] | None = None
     disc_value: str | None = Field(None, max_length=10)
     disc_desc: str | None = Field(None, max_length=500)
@@ -40,11 +43,13 @@ class InvoiceUpdate(BaseModel):
 class InvoiceResponse(InvoiceBase):
     id: int
     date_value: datetime
+    status: InvoiceStatus
     view_count: int
     last_view: datetime | None
     items: list[ItemResponse] = []
 
     model_config = ConfigDict(from_attributes=True)
+
 
 class PaginationInfo(BaseModel):
     page: int
@@ -56,3 +61,8 @@ class PaginationInfo(BaseModel):
 class InvoicePaginatedResponse(BaseModel):
     invoices: list[InvoiceResponse]
     pagination: PaginationInfo
+
+
+class InvoiceStatusUpdate(BaseModel):
+    status: InvoiceStatus = Field(...,
+                                  description="New status for an existing invoice")

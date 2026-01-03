@@ -13,10 +13,14 @@ class Settings(BaseSettings):
     # Application
     APP_NAME: str = Field(default="Invoice Management System")
     APP_VERSION: str = Field(default="1.0.0")
-    API_VERSION: str = Field(default="/api/v1/")
+    API_VERSION: str = Field(default="/api/v1")
     DEBUG: bool = Field(default=False)
     ENV: str = Field(default="development")
     PORT: int = Field(default=8000)
+
+    # Documentation URLs (new section)
+    DOCS_URL: str = Field(default="/docs") 
+    REDOC_URL: str = Field(default="/redoc")
 
     # Database
     DATABASE_URL: str = Field(default='sqlite:///bot.db')

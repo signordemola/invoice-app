@@ -5,7 +5,7 @@ from sqlalchemy import func, or_
 from sqlalchemy.orm import Session, joinedload, selectinload
 
 from app.models.client import Client
-from app.models.invoice import Invoice
+from app.models.invoice import Invoice, InvoiceStatus
 from app.models.item import Item
 from app.schemas.invoice import InvoiceCreate, InvoiceUpdate
 from app.utils.datetime_utils import get_current_timezone
@@ -182,12 +182,52 @@ def update_invoice(
     invoice = db.query(Invoice).filter(Invoice.id == invoice_id).first()
 
     if not invoice:
-        raise InvoiceNotFoundError(f"Invoice with id {invoice_id} not found")
+        raise InvoiceNotFoundError(f"Invoice with id {invoice_id} not found!")
 
     update_data = invoice_data.model_dump(exclude_unset=True)
 
+    if "status" in update_data and update_data["status"] is not None:
+        new_status = validate_invoice_status(update_data["status"])
+
+        assert new_status is not None, "validate_invoice_status returned None for non-None input"
+
+        current_status = InvoiceStatus(invoice.status)
+
+        validate_status_transition(
+            current_status=current_status,
+            new_status=new_status
+        )
+
+        update_data["status"] = new_status
+
     for field, value in update_data.items():
         setattr(invoice, field, value)
+
+    db.commit()
+    db.refresh(invoice)
+
+    return invoice
+
+
+def change_invoice_status(
+    invoice_id: int,
+    new_status: InvoiceStatus,
+    db: Session
+) -> Invoice:
+    """ Change an invoice's status with validation."""
+
+    invoice = db.query(Invoice).filter(Invoice.id == invoice_id).first()
+
+    if not invoice:
+        raise InvoiceNotFoundError(f"Invoice with id {invoice_id} not found")
+
+    current_status = InvoiceStatus(invoice.status)
+    validate_status_transition(
+        current_status=current_status,
+        new_status=new_status
+    )
+
+    invoice.status = new_status
 
     db.commit()
     db.refresh(invoice)
@@ -218,3 +258,89 @@ def delete_invoice(
 
     db.delete(invoice)
     db.commit()
+
+
+def validate_invoice_status(status: str | InvoiceStatus | None) -> InvoiceStatus | None:
+    """Validate that a status value is a valid InvoiceStatus enum member."""
+    if status is None:
+        return None
+
+    if isinstance(status, InvoiceStatus):
+        return status
+
+    if isinstance(status, str):
+        try:
+            return InvoiceStatus(status.lower())
+        except ValueError:
+            valid_statuses = [s.value for s in InvoiceStatus]
+            raise InvalidInvoiceDataError(
+                f"Invalid status '{status}'. Must be one of: {', '.join(valid_statuses)}"
+            )
+
+    raise InvalidInvoiceDataError(
+        f"Status must be a string or InvoiceStatus enum, got {type(status).__name__}"
+    )
+
+
+ALLOWED_STATUS_TRANSITIONS: dict[InvoiceStatus, set[InvoiceStatus]] = {
+    InvoiceStatus.DRAFT: {
+        InvoiceStatus.SENT,
+        InvoiceStatus.CANCELLED
+    },
+    InvoiceStatus.SENT: {
+        InvoiceStatus.VIEWED,
+        InvoiceStatus.PAID,
+        InvoiceStatus.PARTIALLY_PAID,
+        InvoiceStatus.OVERDUE,
+        InvoiceStatus.CANCELLED
+    },
+    InvoiceStatus.VIEWED: {
+        InvoiceStatus.PAID,
+        InvoiceStatus.PARTIALLY_PAID,
+        InvoiceStatus.OVERDUE,
+        InvoiceStatus.CANCELLED
+    },
+    InvoiceStatus.PAID: set(),
+    InvoiceStatus.PARTIALLY_PAID: {
+        InvoiceStatus.PAID,
+        InvoiceStatus.OVERDUE,
+        InvoiceStatus.CANCELLED
+    },
+    InvoiceStatus.OVERDUE: {
+        InvoiceStatus.PAID,
+        InvoiceStatus.PARTIALLY_PAID,
+        InvoiceStatus.CANCELLED
+    },
+    InvoiceStatus.CANCELLED: set()
+}
+
+
+def validate_status_transition(
+    current_status: InvoiceStatus,
+    new_status: InvoiceStatus
+) -> None:
+    """
+    Validate that transitioning from current_status to new_status is allowed.
+
+    Args:
+        current_status: The invoice's current status
+        new_status: The desired new status
+
+    Raises:
+        InvalidInvoiceDataError: If the transition is not allowed
+    """
+    # Allow staying in the same status (no-op)
+    if current_status == new_status:
+        return
+
+    # Get allowed transitions for current status
+    allowed_transitions = ALLOWED_STATUS_TRANSITIONS.get(current_status, set())
+
+    # Check if new status is in allowed transitions
+    if new_status not in allowed_transitions:
+        allowed_list = [s.value for s in allowed_transitions] if allowed_transitions else [
+            "none (terminal state)"]
+        raise InvalidInvoiceDataError(
+            f"Cannot transition invoice from '{current_status.value}' to '{new_status.value}'. "
+            f"Allowed transitions: {', '.join(allowed_list)}"
+        )

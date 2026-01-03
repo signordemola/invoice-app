@@ -1,14 +1,27 @@
 from datetime import datetime
+from sqlalchemy import Enum
 from typing import TYPE_CHECKING
 from sqlalchemy import BigInteger, Boolean, DateTime, ForeignKey, Integer, JSON, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from ..config.database import Base
+from enum import Enum as PyEnum
 
 if TYPE_CHECKING:
     from .client import Client
     from .payment import Payment
     from .item import Item
     from .recurrent_bill import RecurrentBill
+
+
+class InvoiceStatus(str, PyEnum):
+    """Valid invoice status values"""
+    DRAFT = "draft"
+    SENT = "sent"
+    VIEWED = "viewed"
+    PAID = "paid"
+    PARTIALLY_PAID = "partially_paid"
+    OVERDUE = "overdue"
+    CANCELLED = "cancelled"
 
 
 class Invoice(Base):
@@ -28,6 +41,12 @@ class Invoice(Base):
     currency: Mapped[int] = mapped_column(Integer)
     client_id: Mapped[int] = mapped_column(
         BigInteger, ForeignKey('client.id', ondelete='RESTRICT'))
+    status: Mapped[str] = mapped_column(
+        Enum(InvoiceStatus, native_enum=False, length=20),
+        default=InvoiceStatus.DRAFT,
+        nullable=False,
+        index=True
+    )
 
     # Optional fields
     purchase_no: Mapped[int | None] = mapped_column(Integer)

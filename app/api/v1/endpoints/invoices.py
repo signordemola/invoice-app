@@ -1,29 +1,13 @@
-from fastapi import APIRouter, HTTPException, Query, Request, status, Depends
-from fastapi.responses import HTMLResponse
-from fastapi.templating import Jinja2Templates
+from fastapi import APIRouter, HTTPException, Query, status, Depends
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import get_current_user
 from app.config.database import get_db
-from app.schemas.invoice import InvoiceCreate, InvoicePaginatedResponse, InvoiceResponse, InvoiceUpdate
-from app.services.invoice_service import ClientNotFoundError, InvalidInvoiceDataError, InvoiceNotFoundError, InvoiceServiceError, create_invoice, delete_invoice, get_invoice_by_id, get_invoices_paginated, update_invoice
+from app.schemas.invoice import InvoiceCreate, InvoicePaginatedResponse, InvoiceResponse, InvoiceStatusUpdate, InvoiceUpdate
+from app.services.invoice_service import ClientNotFoundError, InvalidInvoiceDataError, InvoiceNotFoundError, InvoiceServiceError, change_invoice_status, create_invoice, delete_invoice, get_invoice_by_id, get_invoices_paginated, update_invoice
 
 
 router = APIRouter()
-
-templates = Jinja2Templates(directory="app/templates")
-
-
-@router.get("/dashboard", response_class=HTMLResponse)
-def list_invoices(request: Request, db: Session = Depends(get_db)):
-    result = get_invoices_paginated(
-        db, page=1, limit=100)
-
-    invoices = result["invoices"]
-
-    return templates.TemplateResponse(
-        "invoices.html",
-        {"request": request, "invoices": invoices})
 
 
 @router.post('/', response_model=InvoiceResponse, status_code=status.HTTP_201_CREATED)
@@ -81,6 +65,29 @@ def get_invoice_route(
     except InvoiceNotFoundError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+
+
+@router.patch('/{invoice_id}/status', response_model=InvoiceResponse)
+def change_invoice_status_route(invoice_id: int, status_update: InvoiceStatusUpdate, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    """Change an invoice's status with validation of allowed transitions."""
+
+    try:
+        updated_invoice = change_invoice_status(
+            invoice_id=invoice_id,
+            new_status=status_update.status,
+            db=db
+        )
+        return updated_invoice
+    except InvoiceNotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e)
+        )
+    except InvalidInvoiceDataError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
 
 
 @router.patch("/{invoice_id}", response_model=InvoiceResponse)

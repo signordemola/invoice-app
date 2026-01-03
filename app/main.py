@@ -1,7 +1,6 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
-from fastapi.responses import HTMLResponse
 
 
 from .config import settings
@@ -12,7 +11,8 @@ app = FastAPI(
     title=settings.APP_NAME,
     version=settings.APP_VERSION,
     debug=settings.DEBUG,
-    docs_url=settings.API_VERSION
+    docs_url=settings.DOCS_URL,
+    redoc_url=settings.REDOC_URL
 )
 
 app.add_middleware(
