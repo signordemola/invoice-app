@@ -35,3 +35,15 @@ class PaymentResponse(PaymentBase):
     last_view: datetime | None
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class PaginationInfo(BaseModel):
+    page: int
+    limit: int
+    total: int
+    total_pages: int
+
+
+class PaymentPaginatedResponse(BaseModel):
+    payments: list[PaymentResponse]
+    pagination: PaginationInfo
