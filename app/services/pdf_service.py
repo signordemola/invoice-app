@@ -1,13 +1,14 @@
+import os
+
+from jinja2 import Environment, FileSystemLoader
+from app.utils.invoice_utils import calculate_invoice_totals
+from app.models.invoice import Invoice
+from xhtml2pdf import pisa
 from io import BytesIO
-from turtle import width
 from sqlalchemy.orm import Session, joinedload
 
-from reportlab.lib.pagesizes import A4
-from reportlab.lib.units import cm
-from reportlab.pdfgen import canvas
-
-from app.models.invoice import Invoice
-from app.utils.invoice_utils import calculate_invoice_totals
+template_dir = os.path.join(os.path.dirname(__file__), '..', 'templates/pdf')
+jinja_env = Environment(loader=FileSystemLoader(template_dir))
 
 
 class PDFServiceError(Exception):
@@ -23,6 +24,7 @@ class PDFInvoiceNotFoundError(PDFServiceError):
 def generate_invoice_pdf(invoice_id: int, db: Session) -> bytes:
     """Generate a PDF for an invoice"""
 
+    # Query invoice with related data
     invoice = db.query(Invoice)\
         .options(
             joinedload(Invoice.client),
@@ -32,122 +34,33 @@ def generate_invoice_pdf(invoice_id: int, db: Session) -> bytes:
         .first()
 
     if not invoice:
-        raise PDFInvoiceNotFoundError(f"Invoice with id {invoice_id} not found!")
+        raise PDFInvoiceNotFoundError(
+            f"Invoice with id {invoice_id} not found!")
 
+    # Calculate totals
     total = calculate_invoice_totals(invoice)
 
+    # Format dates for display
+    issue_date = invoice.date_value.strftime("%d %B %Y")
+    due_date = invoice.invoice_due.strftime("%d %B %Y")
+
+    # Load the Jinja2 template
+    template = jinja_env.get_template('invoice.html')
+
+    # Render template with invoice data
+    html_content = template.render(
+        invoice=invoice,
+        issue_date=issue_date,
+        due_date=due_date,
+        total=total
+    )
+
+    # Generate PDF from rendered HTML
     buffer = BytesIO()
-    pdf = canvas.Canvas(buffer, pagesize=A4)
-    width, height = A4
+    result = pisa.CreatePDF(html_content, dest=buffer)
 
-    right_margin = 50
-    y_position = height - 80
-
-    pdf.setFont("Helvetica-Bold", 24)
-    title_text = "INVOICE"
-    title_width = pdf.stringWidth(title_text, "Helvetica-Bold", 24)
-    pdf.drawString(width - title_width - right_margin, y_position, title_text)
-
-    y_position -= 40
-
-    pdf.setFont("Helvetica-Bold", 12)
-    pdf.drawString(width - 200, y_position, "Invoice Number:")
-    pdf.setFont("Helvetica", 12)
-    pdf.drawString(width - 200 + 110, y_position, invoice.invoice_no or "N/A")
-
-    y_position -= 25
-
-    pdf.setFont("Helvetica-Bold", 12)
-    pdf.drawString(width - 200, y_position, "Issue Date:")
-    pdf.setFont("Helvetica", 12)
-    issue_date_str = invoice.date_value.strftime("%d %B %Y")
-    pdf.drawString(width - 200 + 110, y_position, issue_date_str)
-
-    y_position -= 25
-
-    pdf.setFont("Helvetica-Bold", 12)
-    pdf.drawString(width - 200, y_position, "Due Date:")
-    pdf.setFont("Helvetica", 12)
-    due_date_str = invoice.invoice_due.strftime("%d %B %Y")
-    pdf.drawString(width - 200 + 110, y_position, due_date_str)
-
-    y_position -= 25
-
-    pdf.setFont("Helvetica-Bold", 12)
-    pdf.drawString(width - 200, y_position, "Status:")
-    pdf.setFont("Helvetica", 12)
-    pdf.drawString(width - 200 + 110, y_position, invoice.status.upper())
-
-    y_position = height - 80
-
-    pdf.setFont("Helvetica-Bold", 12)
-    pdf.drawString(50, y_position, "Bill To:")
-
-    y_position -= 20
-    pdf.setFont("Helvetica", 11)
-    pdf.drawString(50, y_position, invoice.client.name)
-
-    y_position -= 18
-    pdf.setFont("Helvetica", 10)
-    pdf.drawString(50, y_position, invoice.client.email)
-
-    y_position = height - 200
-
-    col_desc = 50
-    col_qty = 350
-    col_rate = 420
-    col_amount = 500
-
-    pdf.setFont("Helvetica-Bold", 10)
-    pdf.drawString(col_desc, y_position, "Description")
-    pdf.drawString(col_qty, y_position, "Qty")
-    pdf.drawString(col_rate, y_position, "Rate")
-    pdf.drawString(col_amount, y_position, "Amount")
-
-    y_position -= 5
-    pdf.line(50, y_position, width - 50, y_position)
-    y_position -= 20
-
-    pdf.setFont("Helvetica", 10)
-    for item in invoice.items:
-        pdf.drawString(col_desc, y_position, item.item_desc[:50])
-        pdf.drawString(col_qty, y_position, str(item.qty))
-        pdf.drawString(col_rate, y_position, f"{item.rate:.2f}")
-        pdf.drawString(col_amount, y_position, f"{item.amount:.2f}")
-        y_position -= 20
-
-    y_position -= 30
-
-    totals_label_x = width - 200
-    totals_amount_x = width - 50
-
-    pdf.setFont("Helvetica", 10)
-
-    pdf.drawString(totals_label_x, y_position, "Subtotal:")
-    pdf.drawRightString(totals_amount_x, y_position,
-                        f"{total['subtotal']:.2f}")
-    y_position -= 20
-
-    pdf.drawString(totals_label_x, y_position, "Discount:")
-    pdf.drawRightString(totals_amount_x, y_position,
-                        f"{total['discount']:.2f}")
-    y_position -= 20
-
-    pdf.drawString(totals_label_x, y_position, "Total:")
-    pdf.drawRightString(totals_amount_x, y_position, f"{total['total']:.2f}")
-    y_position -= 20
-
-    pdf.drawString(totals_label_x, y_position, "VAT (7.5%):")
-    pdf.drawRightString(totals_amount_x, y_position, f"{total['vat']:.2f}")
-    y_position -= 20
-
-    pdf.setFont("Helvetica-Bold", 12)
-    pdf.drawString(totals_label_x, y_position, "Grand Total:")
-    pdf.drawRightString(totals_amount_x, y_position,
-                        f"{total['vat_total']:.2f}")
-
-    pdf.showPage()
-    pdf.save()
+    if result.err:  # type: ignore
+        raise PDFServiceError("PDF generation failed")
 
     buffer.seek(0)
     return buffer.getvalue()

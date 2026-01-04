@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Invoice {{ invoice.invoice_no }}</title>
+    <style>
+      @page {
+        margin: 1.5cm 2cm 1.5cm 2cm;
+      }
+      body {
+        font-family: "Helvetica Neue", Arial, sans-serif;
+        font-size: 13px;
+        color: #333;
+        line-height: 1.5;
+        margin: 0;
+        padding: 10px;
+      }
+      .header {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 0.5cm;
+      }
+
+      .header-left {
+        width: 60%;
+      }
+      .logo {
+        height: 50px;
+        display: block;
+        margin-bottom: 8px;
+      }
+      .company-info {
+        line-height: 1.4;
+      }
+      .invoice-meta {
+        text-align: right;
+      }
+      .invoice-title {
+        font-size: 24px;
+        font-weight: 600;
+        margin-bottom: 10px;
+      }
+      .recipient {
+        margin-bottom: 1cm;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        border-bottom: 1px solid #ddd;
+        margin-bottom: 0.8cm;
+      }
+      th,
+      td {
+        border-top: 1px solid #ddd;
+        padding: 6px 4px;
+        text-align: left;
+        vertical-align: top;
+      }
+      th {
+        background: #f5f5f5;
+        font-weight: 600;
+      }
+      .totals {
+        width: 40%;
+        float: right;
+        margin-bottom: 0.5cm;
+      }
+      .totals td {
+        padding: 4px 0;
+      }
+      .bottom-container {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 1.5cm;
+        margin-bottom: 1.5cm;
+        page-break-inside: avoid;
+      }
+      .sender-details {
+        width: 48%;
+      }
+      .notes {
+        clear: both;
+        margin-bottom: 0.5cm;
+        text-align: center;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="header">
+      <div class="header-left">
+        <img
+          class="logo"
+          src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='150' height='50'%3E%3Crect width='150' height='50' fill='%232c3e50'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='Arial' font-size='16' fill='white'%3ELOGO%3C/text%3E%3C/svg%3E"
+          alt="Company Logo"
+        />
+        <div class="company-info">
+          <strong>Acme Corporation Ltd</strong><br />
+          123 Business Street<br />
+          Victoria Island, Lagos 101241<br />
+          Nigeria
+        </div>
+      </div>
+      <div class="invoice-meta">
+        <div class="invoice-title">Invoice</div>
+        <div>
+          <strong>Invoice No.:</strong> {{ invoice.invoice_no or 'N/A' }}
+        </div>
+        <div><strong>Date:</strong> {{ issue_date }}</div>
+        <div><strong>Due Date:</strong> {{ due_date }}</div>
+        <div><strong>Status:</strong> {{ invoice.status.upper() }}</div>
+      </div>
+    </div>
+
+    <div class="recipient">
+      <strong>Bill To:</strong><br />
+      {{ invoice.client.name }}<br />
+      {{ invoice.client.email }}
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th style="width: 5%">#</th>
+          <th>Description</th>
+          <th style="width: 10%; text-align: right">Qty</th>
+          <th style="width: 15%; text-align: right">Rate</th>
+          <th style="width: 15%; text-align: right">Amount</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in invoice.items %}
+        <tr>
+          <td>{{ loop.index }}</td>
+          <td>{{ item.item_desc }}</td>
+          <td style="text-align: right">{{ item.qty }}</td>
+          <td style="text-align: right">{{ "%.2f"|format(item.rate) }}</td>
+          <td style="text-align: right">{{ "%.2f"|format(item.amount) }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <div class="totals">
+      <table>
+        <tr>
+          <td>Subtotal:</td>
+          <td style="text-align: right">{{ "%.2f"|format(total.subtotal) }}</td>
+        </tr>
+        <tr>
+          <td>Discount:</td>
+          <td style="text-align: right">{{ "%.2f"|format(total.discount) }}</td>
+        </tr>
+        <tr>
+          <td>Total:</td>
+          <td style="text-align: right">{{ "%.2f"|format(total.total) }}</td>
+        </tr>
+        <tr>
+          <td>VAT (7.5%):</td>
+          <td style="text-align: right">{{ "%.2f"|format(total.vat) }}</td>
+        </tr>
+        <tr>
+          <td><strong>Grand Total:</strong></td>
+          <td style="text-align: right">
+            <strong>{{ "%.2f"|format(total.vat_total) }}</strong>
+          </td>
+        </tr>
+      </table>
+    </div>
+
+    <div class="bottom-container">
+      <div class="sender-details">
+        <strong>Acme Corporation Ltd</strong><br />
+        123 Business Street, Victoria Island<br />
+        Lagos, 101241, Nigeria<br /><br />
+        Email: support@acmecorp.com<br />
+        Phone: +234 123 456 7890
+      </div>
+    </div>
+  </body>
+</html>
