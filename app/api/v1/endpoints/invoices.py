@@ -1,10 +1,12 @@
-from fastapi import APIRouter, HTTPException, Query, status, Depends
+from fastapi import APIRouter, HTTPException, Query, Response, status, Depends
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import get_current_user
 from app.config.database import get_db
+from app.models.invoice import Invoice
 from app.schemas.invoice import InvoiceCreate, InvoicePaginatedResponse, InvoiceResponse, InvoiceStatusUpdate, InvoiceUpdate
 from app.services.invoice_service import ClientNotFoundError, InvalidInvoiceDataError, InvoiceNotFoundError, InvoiceServiceError, change_invoice_status, create_invoice, delete_invoice, get_invoice_by_id, get_invoices_paginated, update_invoice
+from app.services.pdf_service import PDFInvoiceNotFoundError, generate_invoice_pdf
 
 
 router = APIRouter()
@@ -126,3 +128,29 @@ def delete_invoice_route(
     except InvalidInvoiceDataError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+
+@router.get("/{invoice_id}/pdf")
+def download_invoice_pdf_route(
+    invoice_id: int,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
+):
+    """Generate and download invoice as PDF."""
+
+    try:
+        pdf_bytes = generate_invoice_pdf(invoice_id=invoice_id, db=db)
+
+        invoice = db.query(Invoice).filter(Invoice.id == invoice_id).first()
+        filename = f"{invoice.invoice_no}.pdf" if invoice and invoice.invoice_no else f"invoice_{invoice_id}.pdf"
+
+        return Response(
+            content=pdf_bytes,
+            media_type="application/pdf",
+            headers={
+                "Content-Disposition": f'attachment; filename="{filename}"'
+            }
+        )
+    except PDFInvoiceNotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=str(e))

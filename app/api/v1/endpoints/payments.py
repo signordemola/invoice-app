@@ -6,7 +6,7 @@ from app.config.database import get_db
 from app.models.invoice import Invoice
 from app.schemas.payment import PaymentCreate, PaymentPaginatedResponse, PaymentResponse, PaymentUpdate
 from app.services.invoice_service import InvoiceNotFoundError
-from app.services.payment_service import DuplicatePaymentError, InvalidPaymentDataError, PaymentNotFoundError, PaymentServiceError, create_payment, get_payment_by_id, get_payments_paginated, update_invoice_status_after_payment
+from app.services.payment_service import DuplicatePaymentError, InvalidPaymentDataError, PaymentNotFoundError, PaymentServiceError, create_payment, delete_payment, get_payment_by_id, get_payments_for_invoice, get_payments_paginated, update_invoice_status_after_payment, update_payment
 
 router = APIRouter()
 
@@ -74,5 +74,58 @@ def get_payments_route(
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(e)
+        )
+
+
+@router.get("/invoice/{invoice_id}", response_model=list[PaymentResponse])
+def get_invoice_payments_route(
+    invoice_id: int,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
+):
+    """Get all payments for a specific invoice."""
+
+    payments = get_payments_for_invoice(invoice_id=invoice_id, db=db)
+    return payments
+
+
+@router.patch("/{payment_id}", response_model=PaymentResponse)
+def update_payment_route(
+    payment_id: int,
+    payment_data: PaymentUpdate,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
+):
+    """Update an existing payment (partial update)."""
+
+    try:
+        updated_payment = update_payment(
+            payment_id=payment_id,
+            payment_data=payment_data,
+            db=db
+        )
+        return updated_payment
+    except PaymentNotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e)
+        )
+
+
+@router.delete("/{payment_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_payment_route(
+    payment_id: int,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
+):
+    """Delete a payment record."""
+
+    try:
+        delete_payment(payment_id=payment_id, db=db)
+        return None
+    except PaymentNotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
             detail=str(e)
         )
