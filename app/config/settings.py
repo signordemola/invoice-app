@@ -1,5 +1,5 @@
 import os
-from typing import Literal
+from typing import Literal, Optional
 from dotenv import load_dotenv
 from pydantic import Field, computed_field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -24,21 +24,44 @@ class Settings(BaseSettings):
 
     # Database
     DATABASE_URL: str = Field(default='sqlite:///bot.db')
+    POOL_SIZE: int = Field(10, validation_alias="POOL_SIZE")
+    MAX_OVERFLOW: int = Field(20, validation_alias="MAX_OVERFLOW")
+    POOL_TIMEOUT: int = Field(40, validation_alias="POOL_TIMEOUT")
+    POOL_RECYCLE: int = Field(1800, validation_alias="POOL_RECYCLE")
+    CONNECT_TIMEOUT: int = Field(10, validation_alias="DB_CONNECT_TIMEOUT")
 
     # Email Settings
     RESEND_API_KEY: str = Field(...,
                                 description="Resend API key for sending emails")
     EMAIL_FROM_ADDRESS: str = Field(default="noreply@yourdomain.com")
     EMAIL_FROM_NAME: str = Field(default="Invoice Management System")
-    
+    EMAIL_VERIFICATION_TOKEN_EXPIRATION_HOURS: int = Field(
+        24,
+        validation_alias="EMAIL_VERIFICATION_TOKEN_EXPIRATION_HOURS"
+    )
+    PASSWORD_RESET_TOKEN_EXPIRATION_MINUTES: int = Field(
+        30,
+        validation_alias="PASSWORD_RESET_TOKEN_EXPIRATION_MINUTES"
+    )
+
     # CORS
     CORS_ORIGINS: str = Field(
         default="http://localhost:3000,http://localhost:8080")
+
+    # Exemption for specific IPs (comma-separated)
+    RATE_LIMIT_EXEMPT_IPS: Optional[str] = Field(
+        None,
+        validation_alias="RATE_LIMIT_EXEMPT_IPS"
+    )
 
     # JWT Authentication
     SECRET_KEY: str = Field(default="dev-secret-key-change-in-production")
     ALGORITHM: str = Field(default="HS256")
     ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(default=30)
+    ACCESS_TOKEN_EXPIRATION: int = Field(
+        60 * 24, validation_alias="ACCESS_TOKEN_EXPIRATION")
+    REFRESH_TOKEN_EXPIRATION: int = Field(
+        60 * 24 * 7, validation_alias="REFRESH_TOKEN_EXPIRATION")
 
     # Cookie Settings
     COOKIE_NAME: str = Field(default="access_token")
@@ -84,4 +107,8 @@ class Settings(BaseSettings):
                 )
 
 
-settings = Settings()
+def get_settings() -> Settings:
+    return Settings()
+
+
+settings = get_settings()

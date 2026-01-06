@@ -1,10 +1,20 @@
+from contextlib import asynccontextmanager
+from typing import AsyncIterator
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 
+from app.config.database import init_db
+
 
 from .config import settings
 from .api.v1 import api_router
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    init_db()
+    yield
 
 
 app = FastAPI(
@@ -12,7 +22,8 @@ app = FastAPI(
     version=settings.APP_VERSION,
     debug=settings.DEBUG,
     docs_url=settings.DOCS_URL,
-    redoc_url=settings.REDOC_URL
+    redoc_url=settings.REDOC_URL,
+    lifespan=lifespan
 )
 
 app.add_middleware(
@@ -40,9 +51,19 @@ def root() -> dict:
 
 @app.get("/health")
 def health_check():
-    """Health check endpoint"""
-    return {"status": "healthy"}
+    """Health check endpoint for monitoring and load balancers."""
+    return {
+        "status": "healthy",
+        "version": "1.0.0",
+        "environment": settings.ENV
+    }
+
+
+# @app.get("/metrics")
+# def metrics():
+#     """Prometheus metrics endpoint."""
+#     return metrics_endpoint()
 
 
 # API ENDPOINTS
-app.include_router(api_router, prefix='/api/v1')
+app.include_router(api_router, prefix=settings.API_VERSION)

@@ -2,7 +2,6 @@ from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.orm import Session
 
 from app.config import settings
-
 from ....schemas.auth import LoginRequest
 from ....config.database import get_db
 from ....services.auth_service import AuthenticationError, InactiveAccountError, UserExistsError, login_user, logout_user, register_user

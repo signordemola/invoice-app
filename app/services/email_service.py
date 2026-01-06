@@ -74,14 +74,12 @@ def send_email_with_attachment(
             file_path = Path(attachment_path)
             file_bytes = file_path.read_bytes()
             filename = attachment_name or file_path.name
-
-            # Convert bytes to base64 string
             file_base64 = base64.b64encode(file_bytes).decode('utf-8')
 
             params["attachments"] = [
                 {
                     "filename": filename,
-                    "content": file_base64  # Now a string, not bytes
+                    "content": file_base64
                 }
             ]
 
