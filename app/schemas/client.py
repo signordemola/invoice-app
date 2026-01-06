@@ -1,5 +1,6 @@
 from datetime import datetime
-from pydantic import BaseModel, Field, EmailStr, ConfigDict
+from pydantic import BaseModel, Field, EmailStr, ConfigDict, field_validator
+from email_validator import validate_email, EmailNotValidError
 
 
 class ClientBase(BaseModel):
@@ -10,6 +11,19 @@ class ClientBase(BaseModel):
     email: EmailStr
     phone: str = Field(..., min_length=3, max_length=25)
     post_addr: str = Field(..., min_length=1, max_length=20)
+
+    @field_validator('email')
+    @classmethod
+    def validate_email(cls, value: str) -> str:
+        """Validate email deliverability."""
+
+        try:
+            validated = validate_email(
+                value, check_deliverability=True, allow_smtputf8=True
+            )
+            return validated.normalized
+        except EmailNotValidError as e:
+            raise ValueError(f"Invalid email address: {str(e)}") from e
 
 
 class ClientCreate(ClientBase):
@@ -23,8 +37,24 @@ class ClientUpdate(BaseModel):
 
     name: str | None = Field(None, min_length=1, max_length=150)
     address: str | None = Field(None, min_length=1)
+    email: EmailStr | None = None
     phone: str | None = Field(None, min_length=3, max_length=25)
     post_addr: str | None = Field(None, min_length=1, max_length=20)
+
+    @field_validator("email")
+    @classmethod
+    def validate_email(cls, value: str | None) -> str | None:
+        """Validate and normalize email if provided"""
+
+        if value is None:
+            return None
+
+        try:
+            validated = validate_email(
+                value, check_deliverability=True, allow_smtputf8=True)
+            return validated.normalized
+        except EmailNotValidError as e:
+            raise ValueError(f"Invalid email address: {str(e)}")
 
 
 class ClientResponse(ClientBase):
