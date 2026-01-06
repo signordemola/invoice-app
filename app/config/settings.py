@@ -19,12 +19,18 @@ class Settings(BaseSettings):
     PORT: int = Field(default=8000)
 
     # Documentation URLs (new section)
-    DOCS_URL: str = Field(default="/docs") 
+    DOCS_URL: str = Field(default="/docs")
     REDOC_URL: str = Field(default="/redoc")
 
     # Database
     DATABASE_URL: str = Field(default='sqlite:///bot.db')
 
+    # Email Settings
+    RESEND_API_KEY: str = Field(...,
+                                description="Resend API key for sending emails")
+    EMAIL_FROM_ADDRESS: str = Field(default="noreply@yourdomain.com")
+    EMAIL_FROM_NAME: str = Field(default="Invoice Management System")
+    
     # CORS
     CORS_ORIGINS: str = Field(
         default="http://localhost:3000,http://localhost:8080")

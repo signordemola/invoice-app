@@ -8,6 +8,7 @@ from app.models.client import Client
 from app.models.invoice import Invoice, InvoiceStatus
 from app.models.item import Item
 from app.schemas.invoice import InvoiceCreate, InvoiceUpdate
+from app.services.email_service import EmailServiceError, send_invoice_email
 from app.utils.datetime_utils import get_current_timezone
 from app.utils.invoice_utils import InvoiceTotals, calculate_due_date, calculate_invoice_totals, generate_invoice_number, track_invoice_view
 
@@ -81,8 +82,11 @@ def create_invoice(invoice_data: InvoiceCreate, db: Session, payment_terms_days:
         pass
 
     if auto_send_email:
-        print('Sending invoice email to client...')
-        pass
+        try:
+            email_id = send_invoice_email(invoice.id, db)
+            print(f'Invoice email sent successfully. Email ID: {email_id}')
+        except EmailServiceError as e:
+            print(f'Warning: Failed to send invoice email: {str(e)}')
 
     if invoice.send_reminders and invoice.reminder_frequency:
         print('Scheduling reminders for invoice...')

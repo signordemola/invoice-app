@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.models.invoice import Invoice, InvoiceStatus
 from app.models.payment import Payment
 from app.schemas.payment import PaymentCreate, PaymentUpdate
+from app.services.email_service import EmailServiceError, send_payment_confirmation
 from app.utils.invoice_utils import calculate_invoice_totals
 
 
@@ -65,6 +66,12 @@ def create_payment(
     db.add(payment)
     db.commit()
     db.refresh(payment)
+
+    try:
+        email_id = send_payment_confirmation(payment.id, db)
+        print(f'Payment confirmation email sent. Email ID: {email_id}')
+    except EmailServiceError as e:
+        print(f'Warning: Failed to send payment confirmation: {str(e)}')
 
     return payment
 

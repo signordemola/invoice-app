@@ -5,6 +5,7 @@ from app.api.dependencies import get_current_user
 from app.config.database import get_db
 from app.models.invoice import Invoice
 from app.schemas.invoice import InvoiceCreate, InvoicePaginatedResponse, InvoiceResponse, InvoiceStatusUpdate, InvoiceUpdate
+from app.services.email_service import EmailServiceError, send_invoice_email
 from app.services.invoice_service import ClientNotFoundError, InvalidInvoiceDataError, InvoiceNotFoundError, InvoiceServiceError, change_invoice_status, create_invoice, delete_invoice, get_invoice_by_id, get_invoices_paginated, update_invoice
 from app.services.pdf_service import PDFInvoiceNotFoundError, generate_invoice_pdf
 
@@ -154,3 +155,32 @@ def download_invoice_pdf_route(
     except PDFInvoiceNotFoundError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+
+
+@router.post("/{invoice_id}/send", status_code=status.HTTP_200_OK)
+def send_invoice_email_route(
+    invoice_id: int,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
+):
+    """Manually send invoice email to client."""
+
+    try:
+        email_id = send_invoice_email(invoice_id, db)
+
+        return {
+            "message": "Invoice email sent successfully",
+            "email_id": email_id,
+            "invoice_id": invoice_id
+        }
+
+    except InvoiceNotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e)
+        )
+    except EmailServiceError as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to send email: {str(e)}"
+        )

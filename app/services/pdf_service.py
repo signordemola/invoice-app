@@ -24,7 +24,6 @@ class PDFInvoiceNotFoundError(PDFServiceError):
 def generate_invoice_pdf(invoice_id: int, db: Session) -> bytes:
     """Generate a PDF for an invoice"""
 
-    # Query invoice with related data
     invoice = db.query(Invoice)\
         .options(
             joinedload(Invoice.client),
@@ -37,17 +36,13 @@ def generate_invoice_pdf(invoice_id: int, db: Session) -> bytes:
         raise PDFInvoiceNotFoundError(
             f"Invoice with id {invoice_id} not found!")
 
-    # Calculate totals
     total = calculate_invoice_totals(invoice)
 
-    # Format dates for display
     issue_date = invoice.date_value.strftime("%d %B %Y")
     due_date = invoice.invoice_due.strftime("%d %B %Y")
 
-    # Load the Jinja2 template
     template = jinja_env.get_template('invoice.html')
 
-    # Render template with invoice data
     html_content = template.render(
         invoice=invoice,
         issue_date=issue_date,
@@ -55,7 +50,6 @@ def generate_invoice_pdf(invoice_id: int, db: Session) -> bytes:
         total=total
     )
 
-    # Generate PDF from rendered HTML
     buffer = BytesIO()
     result = pisa.CreatePDF(html_content, dest=buffer)
 

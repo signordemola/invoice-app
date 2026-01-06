@@ -5,6 +5,7 @@ from app.api.dependencies import get_current_user
 from app.config.database import get_db
 from app.models.invoice import Invoice
 from app.schemas.payment import PaymentCreate, PaymentPaginatedResponse, PaymentResponse, PaymentUpdate
+from app.services.email_service import EmailServiceError
 from app.services.invoice_service import InvoiceNotFoundError
 from app.services.payment_service import DuplicatePaymentError, InvalidPaymentDataError, PaymentNotFoundError, PaymentServiceError, create_payment, delete_payment, get_payment_by_id, get_payments_for_invoice, get_payments_paginated, update_invoice_status_after_payment, update_payment
 
@@ -128,4 +129,33 @@ def delete_payment_route(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(e)
+        )
+
+
+@router.post("/{invoice_id}/remind", status_code=status.HTTP_200_OK)
+def send_payment_reminder_route(
+    invoice_id: int,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
+):
+    """Manually send payment reminder for overdue invoice."""
+
+    try:
+        email_id = send_payment_reminder_route(invoice_id, db)
+
+        return {
+            "message": "Payment reminder sent successfully",
+            "email_id": email_id,
+            "invoice_id": invoice_id
+        }
+
+    except InvoiceNotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e)
+        )
+    except EmailServiceError as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to send reminder: {str(e)}"
         )
