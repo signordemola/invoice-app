@@ -5,7 +5,6 @@ from app.api.dependencies import get_current_user
 from app.config.database import get_db
 from app.models.invoice import Invoice
 from app.schemas.invoice import InvoiceCreate, InvoicePaginatedResponse, InvoiceResponse, InvoiceStatusUpdate, InvoiceUpdate
-from app.services.email_service import EmailServiceError, send_invoice_email
 from app.services.invoice_service import change_invoice_status, create_invoice, delete_invoice, get_invoice_by_id, get_invoices_paginated, update_invoice
 from app.services.pdf_service import PDFInvoiceNotFoundError, generate_invoice_pdf
 
@@ -127,4 +126,17 @@ def send_invoice_email_route(
 
     invoice, _ = get_invoice_by_id(invoice_id, db, track_view=False)
 
-    # send invoice email
+    from app.core.celery_app import celery_app
+    
+    task = celery_app.send_task(
+        'email.send_invoice',
+        args=[invoice_id]
+    )
+
+    return {
+        "message": "Invoice email queued for sending",
+        "invoice_id": invoice_id,
+        "invoice_no": invoice.invoice_no,
+        "client_email": invoice.client.email,
+        "task_id": task.id
+    }

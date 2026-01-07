@@ -230,6 +230,22 @@ def create_payment_and_update_invoice(
             }
         )
 
+        from app.core.celery_app import celery_app
+
+        celery_app.send_task(
+            'email.send_payment_confirmation',
+            args=[payment.id]
+        )
+
+        logger.info(
+            f"Triggered payment confirmation email task for payment {payment.id}",
+            extra={
+                "payment_id": payment.id,
+                "invoice_id": invoice.id,
+                "task": "send_payment_confirmation"
+            }
+        )
+
         return payment
 
 

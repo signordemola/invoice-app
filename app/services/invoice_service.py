@@ -167,6 +167,32 @@ def create_invoice(
             }
         )
 
+        if auto_generate_pdf and auto_send_email:
+            # Import celery_app at function level to avoid circular imports
+            from app.core.celery_app import celery_app
+
+            # Use composite task for both operations
+            celery_app.send_task(
+                'invoice.generate_and_send',
+                args=[invoice.id]
+            )
+            logger.info(
+                f"Triggered PDF generation + email task for invoice {invoice.id}",
+                extra={"invoice_id": invoice.id, "task": "generate_and_send"}
+            )
+        elif auto_send_email:
+            # Email only
+            from app.core.celery_app import celery_app
+
+            celery_app.send_task(
+                'email.send_invoice',
+                args=[invoice.id]
+            )
+            logger.info(
+                f"Triggered email task for invoice {invoice.id}",
+                extra={"invoice_id": invoice.id, "task": "send_email"}
+            )
+
         return invoice
 
 
