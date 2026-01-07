@@ -2,6 +2,7 @@ from math import ceil
 from unittest import skip
 from sqlalchemy.orm import Session
 
+from app.core.exceptions import ConflictException
 from app.models.client import Client
 from app.schemas.client import ClientCreate, ClientUpdate
 
@@ -61,7 +62,10 @@ def create_client(client_data: ClientCreate, db: Session) -> Client:
     ).first()
 
     if existing_client:
-        raise ClientEmailExistsError("Email already registered!")
+        raise ConflictException(
+            message="Email already registered!",
+            code="CLIENT_EMAIL_EXISTS"
+        )
 
     new_client = Client(**client_data.model_dump())
 

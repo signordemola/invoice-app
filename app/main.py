@@ -1,10 +1,13 @@
 from contextlib import asynccontextmanager
 from typing import AsyncIterator
 from fastapi import FastAPI
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 
+from app.api.exception_handler import app_exception_handler, unhandled_exception_handler, validation_exception_handler
 from app.config.database import init_db
+from app.core.exceptions import AppException
 
 
 from .config import settings
@@ -25,6 +28,10 @@ app = FastAPI(
     redoc_url=settings.REDOC_URL,
     lifespan=lifespan
 )
+
+app.add_exception_handler(AppException, app_exception_handler) # type: ignore[arg-type]
+app.add_exception_handler(RequestValidationError, validation_exception_handler) # type: ignore[arg-type]
+app.add_exception_handler(Exception, unhandled_exception_handler)
 
 app.add_middleware(
     TrustedHostMiddleware,

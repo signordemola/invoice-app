@@ -13,9 +13,8 @@ from sqlalchemy.exc import (
 )
 
 from app.core.exceptions import (
-    TransactionError,
-    ConnectionError as DBConnectionError,
-    ConflictError
+    ConflictException,
+    DatabaseException,
 )
 
 
@@ -48,13 +47,9 @@ def transaction_scope(db: Session) -> Generator[Session, None, None]:
             exc_info=True
         )
 
-        raise ConflictError(
+        raise ConflictException(
             message=f"Operation conflicts with existing data: {constraint_name}",
             code="CONSTRAINT_VIOLATION",
-            details={
-                "constraint": constraint_name,
-                "database_error": str(e.orig) if hasattr(e, 'orig') else str(e)
-            }
         ) from e
 
     except OperationalError as e:
@@ -69,12 +64,9 @@ def transaction_scope(db: Session) -> Generator[Session, None, None]:
             exc_info=True
         )
 
-        raise DBConnectionError(
+        raise DatabaseException(
             message="Database connection failed or timed out",
             code="DB_CONNECTION_ERROR",
-            details={
-                "database_error": str(e.orig) if hasattr(e, 'orig') else str(e)
-            }
         ) from e
 
     except InvalidRequestError as e:
@@ -89,10 +81,9 @@ def transaction_scope(db: Session) -> Generator[Session, None, None]:
             exc_info=True
         )
 
-        raise TransactionError(
+        raise DatabaseException(
             message="Invalid database session operation",
             code="INVALID_SESSION_STATE",
-            details={"database_error": str(e)}
         ) from e
 
     except SQLAlchemyError as e:
@@ -107,10 +98,9 @@ def transaction_scope(db: Session) -> Generator[Session, None, None]:
             exc_info=True
         )
 
-        raise TransactionError(
+        raise DatabaseException(
             message=f"Database error: {type(e).__name__}",
             code="DATABASE_ERROR",
-            details={"database_error": str(e)}
         ) from e
 
     except Exception as e:
@@ -149,5 +139,8 @@ def _extract_constraint_name(error: IntegrityError) -> str:
 
     if 'check constraint' in error_msg.lower():
         return "Data validation failed"
+
+    if 'not null' in error_msg.lower():
+        return "Required field is missing"
 
     return "Database constraint violated"
