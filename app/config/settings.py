@@ -29,6 +29,18 @@ class Settings(BaseSettings):
     POOL_TIMEOUT: int = Field(40, validation_alias="POOL_TIMEOUT")
     POOL_RECYCLE: int = Field(1800, validation_alias="POOL_RECYCLE")
     CONNECT_TIMEOUT: int = Field(10, validation_alias="DB_CONNECT_TIMEOUT")
+    UPSTASH_REDIS_BROKER_URL: Optional[str] = Field(
+        None,
+        validation_alias="UPSTASH_REDIS_BROKER_URL"
+    )
+    UPSTASH_REDIS_BACKEND_URL: Optional[str] = Field(
+        None,
+        validation_alias="UPSTASH_REDIS_BACKEND_URL"
+    )
+    SENTRY_DSN: Optional[str] = Field(
+        None,
+        validation_alias="SENTRY_DSN"
+    )
 
     # Email Settings
     RESEND_API_KEY: str = Field(...,
