@@ -27,3 +27,9 @@ celery_app.conf.update(
 
 celery_app.conf.task_default_retry_delay = 60
 celery_app.conf.task_max_retries = 5
+
+
+def calculate_retry_delay(retry_count: int, base_delay: int = 60) -> int:
+    """Calculate exponential backoff delay for task retries."""
+
+    return base_delay * (2 ** retry_count)

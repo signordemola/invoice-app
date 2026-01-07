@@ -28,6 +28,7 @@ SessionLocal = sessionmaker(
     expire_on_commit=False,
 )
 
+
 def init_db() -> None:
     """Initialize the database by creating all tables."""
 

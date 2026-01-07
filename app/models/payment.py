@@ -57,13 +57,15 @@ class Payment(Base):
         BigInteger, ForeignKey('invoice.id', ondelete='CASCADE'))
     status: Mapped[PaymentStatus] = mapped_column(
         Enum(PaymentStatus, native_enum=False, length=20),
-        default=PaymentStatus.COMPLETED,
+        default=PaymentStatus.PENDING,
         nullable=False
     )
     view_count: Mapped[int | None] = mapped_column(Integer, default=0)
     last_view: Mapped[datetime | None] = mapped_column(DateTime)
 
     invoice: Mapped["Invoice"] = relationship(back_populates="payments")
+
+    
 
     def __repr__(self) -> str:
         return f"<Payment(id={self.id}, invoice_id={self.invoice_id}, amount={self.amount_paid})>"

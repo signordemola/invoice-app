@@ -23,10 +23,6 @@ TODO: After successful creation, enqueue background job to:
 """
 
 
-# ============================================================================
-# UTILITY FUNCTIONS
-# ============================================================================
-
 def get_status_value(status: InvoiceStatus | PaymentStatus | InvoicePaymentState) -> str:
     """Extract string value from status enum for logging/serialization."""
 
@@ -65,10 +61,6 @@ def determine_payment_status(invoice: Invoice) -> InvoicePaymentState:
     else:
         return InvoicePaymentState.UNPAID
 
-
-# ============================================================================
-# PRIVATE VALIDATION HELPERS
-# ============================================================================
 
 def _validate_invoice_exists(invoice_id: int, db: Session) -> Invoice:
     """Validate invoice exists and return it."""
@@ -132,10 +124,6 @@ def _update_invoice_status_after_payment(invoice: Invoice, db: Session) -> None:
         invoice.status = InvoiceStatus.PARTIALLY_PAID
 
 
-# ============================================================================
-# PUBLIC SERVICE FUNCTIONS - READ OPERATIONS
-# ============================================================================
-
 def get_payment_by_id(
     payment_id: int,
     db: Session,
@@ -198,10 +186,6 @@ def get_payments_paginated(
         }
     }
 
-
-# ============================================================================
-# PUBLIC SERVICE FUNCTIONS - WRITE OPERATIONS
-# ============================================================================
 
 def create_payment(payment_data: PaymentCreate, db: Session) -> Payment:
     """Create a new payment record for an invoice."""

@@ -6,7 +6,6 @@ from app.config.database import get_db
 from app.models.invoice import Invoice
 from app.schemas.payment import PaymentCreate, PaymentPaginatedResponse, PaymentResponse, PaymentUpdate
 from app.services.email_service import EmailServiceError, send_payment_reminder
-from app.services.invoice_service import InvoiceNotFoundError
 from app.services.payment_service import create_payment_and_update_invoice, delete_payment_and_update_invoice, get_payment_by_id, get_payments_for_invoice, get_payments_paginated, update_payment
 
 router = APIRouter()
@@ -96,22 +95,10 @@ def send_payment_reminder_route(
 ):
     """Manually send payment reminder for overdue invoice."""
 
-    try:
-        email_id = send_payment_reminder(invoice_id, db)
+    email_id = send_payment_reminder(invoice_id, db)
 
-        return {
-            "message": "Payment reminder sent successfully",
-            "email_id": email_id,
-            "invoice_id": invoice_id
-        }
-
-    except InvoiceNotFoundError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(e)
-        )
-    except EmailServiceError as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to send reminder: {str(e)}"
-        )
+    return {
+        "message": "Payment reminder sent successfully",
+        "email_id": email_id,
+        "invoice_id": invoice_id
+    }
