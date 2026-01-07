@@ -130,3 +130,20 @@ class ExternalServiceException(AppException):
             code=code,
             status_code=503
         )
+
+
+class TaskException(AppException):
+    """Raised when background task operations fail."""
+
+    def __init__(
+        self,
+        message: str = "Background task failed",
+        task_id: Optional[str] = None,
+        code: str = "TASK_ERROR"
+    ):
+        super().__init__(
+            message=message,
+            code=code,
+            status_code=500
+        )
+        self.task_id = task_id

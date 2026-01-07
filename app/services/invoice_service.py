@@ -323,24 +323,13 @@ def validate_status_transition(
     current_status: InvoiceStatus,
     new_status: InvoiceStatus
 ) -> None:
-    """
-    Validate that transitioning from current_status to new_status is allowed.
+    """Validate that transitioning from current_status to new_status is allowed."""
 
-    Args:
-        current_status: The invoice's current status
-        new_status: The desired new status
-
-    Raises:
-        InvalidInvoiceDataError: If the transition is not allowed
-    """
-    # Allow staying in the same status (no-op)
     if current_status == new_status:
         return
 
-    # Get allowed transitions for current status
     allowed_transitions = ALLOWED_STATUS_TRANSITIONS.get(current_status, set())
 
-    # Check if new status is in allowed transitions
     if new_status not in allowed_transitions:
         allowed_list = [s.value for s in allowed_transitions] if allowed_transitions else [
             "none (terminal state)"]

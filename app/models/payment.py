@@ -28,6 +28,14 @@ class PaymentStatus(str, PyEnum):
     CANCELLED = "cancelled"
 
 
+class InvoicePaymentState(str, PyEnum):
+    """Aggregate payment state for an invoice."""
+    FULLY_PAID = "fully_paid"
+    OVERPAID = "overpaid"
+    PARTIALLY_PAID = "partially_paid"
+    UNPAID = "unpaid"
+
+
 class Payment(Base):
     __tablename__ = "payment"
 
@@ -47,7 +55,7 @@ class Payment(Base):
     amount_paid: Mapped[Decimal] = mapped_column(DECIMAL(15, 2))
     invoice_id: Mapped[int] = mapped_column(
         BigInteger, ForeignKey('invoice.id', ondelete='CASCADE'))
-    status: Mapped[str] = mapped_column(
+    status: Mapped[PaymentStatus] = mapped_column(
         Enum(PaymentStatus, native_enum=False, length=20),
         default=PaymentStatus.COMPLETED,
         nullable=False

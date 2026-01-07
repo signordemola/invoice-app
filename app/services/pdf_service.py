@@ -1,3 +1,4 @@
+import logging
 import os
 
 from jinja2 import Environment, FileSystemLoader
@@ -9,6 +10,8 @@ from sqlalchemy.orm import Session, joinedload
 
 template_dir = os.path.join(os.path.dirname(__file__), '..', 'templates/pdf')
 jinja_env = Environment(loader=FileSystemLoader(template_dir))
+
+logger = logging.getLogger(__name__)
 
 
 class PDFServiceError(Exception):

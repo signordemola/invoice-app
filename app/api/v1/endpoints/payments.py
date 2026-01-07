@@ -5,9 +5,9 @@ from app.api.dependencies import get_current_user
 from app.config.database import get_db
 from app.models.invoice import Invoice
 from app.schemas.payment import PaymentCreate, PaymentPaginatedResponse, PaymentResponse, PaymentUpdate
-from app.services.email_service import EmailServiceError
+from app.services.email_service import EmailServiceError, send_payment_reminder
 from app.services.invoice_service import InvoiceNotFoundError
-from app.services.payment_service import DuplicatePaymentError, InvalidPaymentDataError, PaymentNotFoundError, PaymentServiceError, create_payment, delete_payment, get_payment_by_id, get_payments_for_invoice, get_payments_paginated, update_invoice_status_after_payment, update_payment
+from app.services.payment_service import create_payment_and_update_invoice, delete_payment_and_update_invoice, get_payment_by_id, get_payments_for_invoice, get_payments_paginated, update_payment
 
 router = APIRouter()
 
@@ -20,25 +20,7 @@ def create_payment_route(
 ):
     """Create a new payment record and update invoice status."""
 
-    try:
-        new_payment = create_payment(payment_data=payment_data, db=db)
-
-        invoice = db.query(Invoice).filter(
-            Invoice.id == new_payment.invoice_id).first()
-
-        if invoice:
-            update_invoice_status_after_payment(invoice, db)
-
-        return new_payment
-    except InvoiceNotFoundError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
-    except DuplicatePaymentError as e:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT, detail=str(e))
-    except (InvalidPaymentDataError, PaymentServiceError) as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    return create_payment_and_update_invoice(payment_data=payment_data, db=db)
 
 
 @router.get("/{payment_id}", response_model=PaymentResponse)
@@ -49,16 +31,7 @@ def get_payment_route(
 ):
     """Retrieve a single payment by ID."""
 
-    try:
-        payment = get_payment_by_id(
-            payment_id=payment_id,
-            db=db,
-            load_invoice=True
-        )
-        return payment
-    except PaymentNotFoundError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    return get_payment_by_id(payment_id=payment_id, db=db)
 
 
 @router.get("/", response_model=PaymentPaginatedResponse)
@@ -70,13 +43,7 @@ def get_payments_route(
 ):
     """Get paginated list of all payments."""
 
-    try:
-        return get_payments_paginated(db=db, page=page, limit=limit)
-    except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=str(e)
-        )
+    return get_payments_paginated(db=db, page=page, limit=limit)
 
 
 @router.get("/invoice/{invoice_id}", response_model=list[PaymentResponse])
@@ -87,8 +54,7 @@ def get_invoice_payments_route(
 ):
     """Get all payments for a specific invoice."""
 
-    payments = get_payments_for_invoice(invoice_id=invoice_id, db=db)
-    return payments
+    return get_payments_for_invoice(invoice_id=invoice_id, db=db)
 
 
 @router.patch("/{payment_id}", response_model=PaymentResponse)
@@ -100,18 +66,11 @@ def update_payment_route(
 ):
     """Update an existing payment (partial update)."""
 
-    try:
-        updated_payment = update_payment(
-            payment_id=payment_id,
-            payment_data=payment_data,
-            db=db
-        )
-        return updated_payment
-    except PaymentNotFoundError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(e)
-        )
+    return update_payment(
+        payment_id=payment_id,
+        payment_data=payment_data,
+        db=db
+    )
 
 
 @router.delete("/{payment_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -122,15 +81,12 @@ def delete_payment_route(
 ):
     """Delete a payment record."""
 
-    try:
-        delete_payment(payment_id=payment_id, db=db)
-        return None
-    except PaymentNotFoundError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(e)
-        )
+    delete_payment_and_update_invoice(
+        payment_id=payment_id, db=db)
+    return None
 
+
+# TODO: add to background task
 
 @router.post("/{invoice_id}/remind", status_code=status.HTTP_200_OK)
 def send_payment_reminder_route(
@@ -141,7 +97,7 @@ def send_payment_reminder_route(
     """Manually send payment reminder for overdue invoice."""
 
     try:
-        email_id = send_payment_reminder_route(invoice_id, db)
+        email_id = send_payment_reminder(invoice_id, db)
 
         return {
             "message": "Payment reminder sent successfully",

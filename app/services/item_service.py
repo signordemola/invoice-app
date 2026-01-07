@@ -1,33 +1,13 @@
 from decimal import ROUND_HALF_UP, Decimal
+import logging
 from sqlalchemy.orm import Session
+from app.core.exceptions import ConflictException, NotFoundException
 from app.models.invoice import Invoice
 from app.models.item import Item
 from app.schemas.item import ItemCreate, ItemUpdate
+from app.services.database import transaction_scope
 
-
-class ItemServiceError(Exception):
-    """Base exception for item service errors"""
-    pass
-
-
-class ItemNotFoundError(ItemServiceError):
-    """Raised when an item is not found"""
-    pass
-
-
-class ItemInvoiceNotFoundError(ItemServiceError):
-    """Raised when the invoice for an item doesn't exist"""
-    pass
-
-
-class InvalidItemDataError(ItemServiceError):
-    """Raised when item data is invalid"""
-    pass
-
-
-class InvoiceHasNoItemsError(ItemServiceError):
-    """Raised when trying to delete the last item from an invoice"""
-    pass
+logger = logging.getLogger(__name__)
 
 
 def add_item_to_invoice(
@@ -35,30 +15,32 @@ def add_item_to_invoice(
     item_data: ItemCreate,
     db: Session
 ) -> Item:
-    """Add a new line item to an existing invoice."""
+    """Add a new line item to an existing invoice with transactional integrity."""
 
-    invoice = db.query(Invoice).filter(Invoice.id == invoice_id).first()
-    if not invoice:
-        raise ItemInvoiceNotFoundError(
-            f"Invoice with id {invoice_id} not found!")
+    with transaction_scope(db):
+        invoice = db.query(Invoice).filter(Invoice.id == invoice_id).first()
+        if not invoice:
+            raise NotFoundException(
+                message=f"Invoice with id {invoice_id} not found",
+                resource="invoice"
+            )
 
-    qty = Decimal(str(item_data.qty))
-    rate = Decimal(str(item_data.rate))
-    amount = (qty * rate).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+        qty = Decimal(str(item_data.qty))
+        rate = Decimal(str(item_data.rate))
+        amount = (qty * rate).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
 
-    item = Item(
-        item_desc=item_data.item_desc,
-        qty=item_data.qty,
-        rate=item_data.rate,
-        amount=amount,
-        invoice_id=invoice_id
-    )
+        item = Item(
+            item_desc=item_data.item_desc,
+            qty=item_data.qty,
+            rate=item_data.rate,
+            amount=amount,
+            invoice_id=invoice_id
+        )
 
-    db.add(item)
-    db.commit()
-    db.refresh(item)
+        db.add(item)
+        db.flush()
 
-    return item
+        return item
 
 
 def update_item(
@@ -66,27 +48,32 @@ def update_item(
     item_data: ItemUpdate,
     db: Session
 ) -> Item:
-    """Update an existing item (partial update)"""
+    """Update an existing item with transactional integrity."""
 
-    item = db.query(Item).filter(Item.id == item_id).first()
-    if not item:
-        raise ItemNotFoundError(f"Item with id {item_id} not found!")
+    with transaction_scope(db):
+        item = db.query(Item).filter(Item.id == item_id).first()
+        if not item:
+            raise NotFoundException(
+                message=f"Item with id {item_id} not found",
+                resource="item"
+            )
 
-    update_data = item_data.model_dump(exclude_unset=True)
+        update_data = item_data.model_dump(exclude_unset=True)
 
-    for field, value in update_data.items():
-        setattr(item, field, value)
+        for field, value in update_data.items():
+            setattr(item, field, value)
 
-    if 'qty' in update_data or 'rate' in update_data:
-        qty = Decimal(str(item.qty))
-        rate = Decimal(str(item.rate))
-        item.amount = (qty * rate).quantize(Decimal('0.01'),
-                                            rounding=ROUND_HALF_UP)
+        if 'qty' in update_data or 'rate' in update_data:
+            qty = Decimal(str(item.qty))
+            rate = Decimal(str(item.rate))
+            item.amount = (qty * rate).quantize(
+                Decimal('0.01'),
+                rounding=ROUND_HALF_UP
+            )
 
-    db.commit()
-    db.refresh(item)
+        db.flush()
 
-    return item
+        return item
 
 
 def delete_item(
@@ -94,26 +81,29 @@ def delete_item(
     db: Session,
     allow_last_item_delete: bool = False
 ) -> None:
-    """Delete an item from an invoice."""
+    """Delete an item from an invoice with business rule validation."""
 
-    item = db.query(Item).filter(Item.id == item_id).first()
-    if not item:
-        raise ItemNotFoundError(f"Item with id {item_id} not found!")
-
-    if not allow_last_item_delete:
-        item_count = db.query(Item)\
-            .filter(Item.invoice_id == item.invoice_id)\
-            .count()
-
-        if item_count == 1:
-            raise InvoiceHasNoItemsError(
-                f"Cannot delete item {item_id} because it's the last item on invoice {item.invoice_id}. "
-                "Invoices must have at least one line item."
+    with transaction_scope(db):
+        item = db.query(Item).filter(Item.id == item_id).first()
+        if not item:
+            raise NotFoundException(
+                message=f"Item with id {item_id} not found",
+                resource="item"
             )
 
-    # Delete the item
-    db.delete(item)
-    db.commit()
+        if not allow_last_item_delete:
+            item_count = db.query(Item)\
+                .filter(Item.invoice_id == item.invoice_id)\
+                .count()
+
+            if item_count == 1:
+                raise ConflictException(
+                    message=f"Cannot delete the last item from invoice {item.invoice_id}. "
+                    "Invoices must have at least one line item.",
+                    code="LAST_ITEM_DELETION_FORBIDDEN"
+                )
+
+        db.delete(item)
 
 
 def get_invoice_items(invoice_id: int, db: Session) -> list[Item]:
@@ -121,8 +111,10 @@ def get_invoice_items(invoice_id: int, db: Session) -> list[Item]:
 
     invoice = db.query(Invoice).filter(Invoice.id == invoice_id).first()
     if not invoice:
-        raise ItemInvoiceNotFoundError(
-            f"Invoice with id {invoice_id} not found")
+        raise NotFoundException(
+            message=f"Invoice with id {invoice_id} not found",
+            resource="invoice"
+        )
 
     items = db.query(Item)\
         .filter(Item.invoice_id == invoice_id)\

@@ -16,6 +16,8 @@ from .api.v1 import api_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    """Application lifespan with database and task queue initialization."""
+    
     init_db()
     yield
 

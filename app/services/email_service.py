@@ -2,6 +2,7 @@
 
 import base64
 from datetime import datetime
+import logging
 import os
 from pathlib import Path
 import tempfile
@@ -13,6 +14,8 @@ from app.models.invoice import Invoice
 from app.models.payment import Payment
 from app.services.pdf_service import generate_invoice_pdf
 from app.utils.invoice_utils import calculate_invoice_totals
+
+logger = logging.getLogger(__name__)
 
 
 class EmailServiceError(Exception):

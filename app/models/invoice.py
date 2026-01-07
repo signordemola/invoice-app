@@ -40,7 +40,7 @@ class Invoice(Base):
     currency: Mapped[int] = mapped_column(Integer)
     client_id: Mapped[int] = mapped_column(
         BigInteger, ForeignKey('client.id', ondelete='RESTRICT'))
-    status: Mapped[str] = mapped_column(
+    status: Mapped[InvoiceStatus] = mapped_column(
         Enum(InvoiceStatus, native_enum=False, length=20),
         default=InvoiceStatus.DRAFT,
         nullable=False,
