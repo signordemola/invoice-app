@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 import tempfile
 from typing import Any
+from jinja2 import Environment, FileSystemLoader, select_autoescape
 import resend
 from sqlalchemy.orm import Session, joinedload
 from app.config.settings import settings
@@ -16,6 +17,36 @@ from app.services.pdf_service import generate_invoice_pdf
 from app.utils.invoice_utils import calculate_invoice_totals
 
 logger = logging.getLogger(__name__)
+
+template_dir = Path(__file__).parent.parent / 'templates' / 'email'
+jinja_env = Environment(
+    loader=FileSystemLoader(str(template_dir)),
+    autoescape=select_autoescape(['html', 'xml']),
+    trim_blocks=True,
+    lstrip_blocks=True
+)
+
+
+def render_email_template(template_name: str, context: dict) -> str:
+    """
+    Render email template with context variables.
+
+    Args:
+        template_name: Name of template file (e.g., 'invoice_email.html')
+        context: Dictionary of variables to pass to template
+
+    Returns:
+        Rendered HTML string
+
+    Raises:
+        EmailServiceError: If template rendering fails
+    """
+    try:
+        template = jinja_env.get_template(template_name)
+        return template.render(**context)
+    except Exception as e:
+        logger.error(f"Template rendering failed: {str(e)}", exc_info=True)
+        raise EmailServiceError(f"Failed to render email template: {str(e)}")
 
 
 class EmailServiceError(Exception):
@@ -94,7 +125,7 @@ def send_email_with_attachment(
 
 
 def send_invoice_email(invoice_id: int, db: Session) -> str:
-    """Send invoice email with PDF attachment to client."""
+    """Send invoice email with PDF attachment to client using Jinja2 template."""
 
     invoice = db.query(Invoice)\
         .options(joinedload(Invoice.client), joinedload(Invoice.items))\
@@ -104,28 +135,38 @@ def send_invoice_email(invoice_id: int, db: Session) -> str:
     if not invoice:
         raise EmailServiceError(f"Invoice with id {invoice_id} not found")
 
+    # Generate PDF
     pdf_bytes = generate_invoice_pdf(invoice_id, db)
 
+    # Save PDF to temporary file
     with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as temp_pdf:
         temp_pdf.write(pdf_bytes)
         temp_pdf_path = temp_pdf.name
 
     try:
+        # Calculate invoice totals
         totals = calculate_invoice_totals(invoice)
 
+        # Prepare template context
+        context = {
+            'company_name': settings.EMAIL_FROM_NAME,
+            'company_address': '',  # Add to settings if needed
+            'current_year': datetime.now().year,
+            'client_name': invoice.client.name,
+            'invoice_no': invoice.invoice_no,
+            'invoice_date': invoice.date_value.strftime('%B %d, %Y'),
+            'due_date': invoice.invoice_due.strftime('%B %d, %Y'),
+            'total_amount': f"{totals['vat_total']:,.2f}",
+            'currency_symbol': '₦',  # Add to invoice model or settings
+        }
+
+        # Render email template (AFTER context is defined)
+        html = render_email_template('invoice_email.html', context)
+
+        # Email subject
         subject = f"Invoice {invoice.invoice_no} from {settings.EMAIL_FROM_NAME}"
 
-        html = f"""
-        <html>
-            <body>
-                <p>Dear {invoice.client.name},</p>
-                <p>Please find attached invoice {invoice.invoice_no} for {totals['vat_total']}.</p>
-                <p>Due date: {invoice.invoice_due.strftime('%B %d, %Y')}</p>
-                <p>Thank you for your business!</p>
-            </body>
-        </html>
-        """
-
+        # Send email with attachment
         email_id = send_email_with_attachment(
             to=invoice.client.email,
             subject=subject,
@@ -134,9 +175,19 @@ def send_invoice_email(invoice_id: int, db: Session) -> str:
             attachment_name=f"{invoice.invoice_no}.pdf"
         )
 
+        logger.info(
+            f"Invoice email sent using template",
+            extra={
+                'invoice_id': invoice_id,
+                'invoice_no': invoice.invoice_no,
+                'email_id': email_id
+            }
+        )
+
         return email_id
 
     finally:
+        # Clean up temporary PDF file
         if os.path.exists(temp_pdf_path):
             os.remove(temp_pdf_path)
 

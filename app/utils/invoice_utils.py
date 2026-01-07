@@ -31,11 +31,9 @@ class InvoiceTotals(TypedDict):
 
 def generate_invoice_number(invoice_id: int) -> str:
     """ Generate a unique invoice number using the database ID, Example: INV-2024-000123 """
-    
+
     current_year = datetime.now().year
     return f"INV-{current_year}-{invoice_id:06d}"
-
-
 
 
 def calculate_discount(
@@ -72,12 +70,25 @@ def calculate_vat(
     client_type: int,
     vat_rate: Decimal = VAT_RATE
 ) -> Decimal:
-    """Calculate VAT based on client type """
+    """
+    Calculate VAT based on client type.
+
+    Students are VAT-exempt (return 0.00).
+    Others pay standard VAT rate (7.5% in Nigeria).
+
+    Args:
+        amount: Amount to calculate VAT on
+        client_type: Client type constant (STUDENT, INDIVIDUAL, CORPORATE)
+        vat_rate: VAT percentage rate (default 7.5%)
+
+    Returns:
+        VAT amount as Decimal
+    """
     amt = Decimal(str(amount))
     rate = vat_rate / Decimal('100')
 
     if client_type == CLIENT_TYPE_STUDENT:
-        return -(rate * amt)
+        return Decimal('0.00')  # ← FIX: Students are VAT-exempt (not negative)
     else:
         return rate * amt
 
