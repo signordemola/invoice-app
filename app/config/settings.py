@@ -69,7 +69,8 @@ class Settings(BaseSettings):
     # JWT Authentication
     SECRET_KEY: str = Field(default="dev-secret-key-change-in-production")
     ALGORITHM: str = Field(default="HS256")
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(default=30)
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(
+        default=1440, validation_alias="ACCESS_TOKEN_EXPIRE_MINUTES")
     ACCESS_TOKEN_EXPIRATION: int = Field(
         60 * 24, validation_alias="ACCESS_TOKEN_EXPIRATION")
     REFRESH_TOKEN_EXPIRATION: int = Field(

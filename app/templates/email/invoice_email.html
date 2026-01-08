@@ -4,12 +4,12 @@ company_name }}{% endblock %} {% block content %}
 <p
   style="
     margin: 0 0 20px 0;
-    color: #333333;
-    font-family: Arial, sans-serif;
+    color: #212529;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial,
+      sans-serif;
     font-size: 16px;
     line-height: 24px;
   "
-  class="dark-mode-text mobile-text"
 >
   Dear {{ client_name }},
 </p>
@@ -18,15 +18,17 @@ company_name }}{% endblock %} {% block content %}
 <p
   style="
     margin: 0 0 30px 0;
-    color: #333333;
-    font-family: Arial, sans-serif;
+    color: #495057;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial,
+      sans-serif;
     font-size: 16px;
     line-height: 24px;
   "
-  class="dark-mode-text mobile-text"
 >
-  Please find attached invoice <strong>{{ invoice_no }}</strong> for
-  <strong>{{ currency_symbol }}{{ total_amount }}</strong>.
+  Please find attached invoice
+  <strong style="color: #212529">{{ invoice_no }}</strong> for
+  <strong style="color: #28a745">{{ currency_symbol }}{{ total_amount }}</strong
+  >.
 </p>
 
 <!-- Invoice details table -->
@@ -36,7 +38,12 @@ company_name }}{% endblock %} {% block content %}
   cellspacing="0"
   border="0"
   width="100%"
-  style="margin-bottom: 30px; background-color: #f8f9fa; border-radius: 6px"
+  style="
+    margin-bottom: 30px;
+    background-color: #f8f9fa;
+    border-radius: 6px;
+    border: 1px solid #e9ecef;
+  "
 >
   <tr>
     <td style="padding: 20px">
@@ -52,7 +59,8 @@ company_name }}{% endblock %} {% block content %}
             style="
               padding: 8px 0;
               color: #6c757d;
-              font-family: Arial, sans-serif;
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+                Arial, sans-serif;
               font-size: 14px;
             "
             width="40%"
@@ -62,12 +70,12 @@ company_name }}{% endblock %} {% block content %}
           <td
             style="
               padding: 8px 0;
-              color: #333333;
-              font-family: Arial, sans-serif;
+              color: #212529;
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+                Arial, sans-serif;
               font-size: 14px;
-              font-weight: bold;
+              font-weight: 600;
             "
-            class="dark-mode-text"
           >
             {{ invoice_no }}
           </td>
@@ -77,7 +85,8 @@ company_name }}{% endblock %} {% block content %}
             style="
               padding: 8px 0;
               color: #6c757d;
-              font-family: Arial, sans-serif;
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+                Arial, sans-serif;
               font-size: 14px;
             "
           >
@@ -86,11 +95,11 @@ company_name }}{% endblock %} {% block content %}
           <td
             style="
               padding: 8px 0;
-              color: #333333;
-              font-family: Arial, sans-serif;
+              color: #212529;
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+                Arial, sans-serif;
               font-size: 14px;
             "
-            class="dark-mode-text"
           >
             {{ invoice_date }}
           </td>
@@ -100,7 +109,8 @@ company_name }}{% endblock %} {% block content %}
             style="
               padding: 8px 0;
               color: #6c757d;
-              font-family: Arial, sans-serif;
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+                Arial, sans-serif;
               font-size: 14px;
             "
           >
@@ -110,9 +120,10 @@ company_name }}{% endblock %} {% block content %}
             style="
               padding: 8px 0;
               color: #dc3545;
-              font-family: Arial, sans-serif;
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+                Arial, sans-serif;
               font-size: 14px;
-              font-weight: bold;
+              font-weight: 600;
             "
           >
             {{ due_date }}
@@ -123,7 +134,8 @@ company_name }}{% endblock %} {% block content %}
             style="
               padding: 8px 0;
               color: #6c757d;
-              font-family: Arial, sans-serif;
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+                Arial, sans-serif;
               font-size: 14px;
             "
           >
@@ -133,9 +145,10 @@ company_name }}{% endblock %} {% block content %}
             style="
               padding: 8px 0;
               color: #28a745;
-              font-family: Arial, sans-serif;
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+                Arial, sans-serif;
               font-size: 18px;
-              font-weight: bold;
+              font-weight: 700;
             "
           >
             {{ currency_symbol }}{{ total_amount }}
@@ -150,12 +163,12 @@ company_name }}{% endblock %} {% block content %}
 <p
   style="
     margin: 0 0 20px 0;
-    color: #333333;
-    font-family: Arial, sans-serif;
+    color: #495057;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial,
+      sans-serif;
     font-size: 16px;
     line-height: 24px;
   "
-  class="dark-mode-text mobile-text"
 >
   Please review the attached PDF for complete details and remit payment by the
   due date.
@@ -165,12 +178,12 @@ company_name }}{% endblock %} {% block content %}
 <p
   style="
     margin: 0;
-    color: #333333;
-    font-family: Arial, sans-serif;
+    color: #212529;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial,
+      sans-serif;
     font-size: 16px;
     line-height: 24px;
   "
-  class="dark-mode-text mobile-text"
 >
   Thank you for your business!
 </p>

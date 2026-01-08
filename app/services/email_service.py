@@ -193,7 +193,7 @@ def send_invoice_email(invoice_id: int, db: Session) -> str:
 
 
 def send_payment_confirmation(payment_id: int, db: Session) -> str:
-    """Send payment confirmation email to client."""
+    """Send payment confirmation email to client using Jinja2 template."""
 
     payment = db.query(Payment)\
         .options(
@@ -207,46 +207,65 @@ def send_payment_confirmation(payment_id: int, db: Session) -> str:
     if not payment:
         raise EmailServiceError(f"Payment with id {payment_id} not found")
 
+    # Calculate invoice totals
     totals = calculate_invoice_totals(payment.invoice)
-    total_paid = sum(p.amount_paid for p in payment.invoice.payments)
+
+    # Calculate total paid (sum all non-cancelled payments)
+    from app.models.payment import PaymentStatus
+    total_paid = sum(
+        p.amount_paid for p in payment.invoice.payments
+        if p.status != PaymentStatus.CANCELLED
+    )
+
+    # Calculate remaining balance
     remaining = totals['vat_total'] - total_paid
 
+    # Format payment method for display
+    # payment_mode is already a string (native_enum=False), not enum object
+    payment_method_display = payment.payment_mode.replace('_', ' ').title()
+
+    # Prepare template context
+    context = {
+        'company_name': settings.EMAIL_FROM_NAME,
+        'current_year': datetime.now().year,
+        'client_name': payment.invoice.client.name,
+        'amount_paid': f"{payment.amount_paid:,.2f}",
+        'payment_date': payment.payment_date.strftime('%B %d, %Y'),
+        'payment_method': payment_method_display,
+        'invoice_number': payment.invoice.invoice_no,
+        'invoice_total': f"{totals['vat_total']:,.2f}",
+        'total_paid': f"{total_paid:,.2f}",
+        'remaining_balance': f"{remaining:,.2f}",
+    }
+
+    # Render email template
+    html = render_email_template('payment_confirmation.html', context)
+
+    # Email subject
     subject = f"Payment Confirmation - Invoice {payment.invoice.invoice_no}"
 
-    html = f"""
-    <html>
-        <body>
-            <p>Dear {payment.invoice.client.name},</p>
-            <p>We confirm receipt of your payment of {payment.amount_paid} for invoice {payment.invoice.invoice_no}.</p>
-            <p><strong>Payment Details:</strong></p>
-            <ul>
-                <li>Amount Paid: {payment.amount_paid}</li>
-                <li>Payment Date: {payment.payment_date.strftime('%B %d, %Y')}</li>
-                <li>Payment Method: {payment.payment_mode.replace('_', ' ').title()}</li>
-            </ul>
-            <p><strong>Invoice Balance:</strong></p>
-            <ul>
-                <li>Invoice Total: {totals['vat_total']}</li>
-                <li>Total Paid: {total_paid}</li>
-                <li>Remaining Balance: {remaining}</li>
-            </ul>
-            <p>Thank you for your payment!</p>
-        </body>
-    </html>
-    """
-
-    # Send to invoice's client
+    # Send email
     email_id = send_email(
         to=payment.invoice.client.email,
         subject=subject,
         html=html
     )
 
+    logger.info(
+        "Payment confirmation email sent",
+        extra={
+            'payment_id': payment_id,
+            'invoice_id': payment.invoice.id,
+            'email_id': email_id,
+            'amount': float(payment.amount_paid)
+        }
+    )
+
     return email_id
 
 
 def send_payment_reminder(invoice_id: int, db: Session) -> str:
-    """Send payment reminder email for overdue invoice."""
+    """Send payment reminder email for overdue invoice using Jinja2 template."""
 
     invoice = db.query(Invoice)\
         .options(
@@ -260,12 +279,25 @@ def send_payment_reminder(invoice_id: int, db: Session) -> str:
     if not invoice:
         raise EmailServiceError(f"Invoice with id {invoice_id} not found")
 
+    # Calculate invoice totals
     totals = calculate_invoice_totals(invoice)
-    total_paid = sum(p.amount_paid for p in invoice.payments)
+
+    # Calculate total paid (sum all non-cancelled payments)
+    from app.models.payment import PaymentStatus
+    total_paid = sum(
+        p.amount_paid for p in invoice.payments
+        if p.status != PaymentStatus.CANCELLED
+    )
+
+    # Calculate remaining balance
     remaining = totals['vat_total'] - total_paid
 
-    days_overdue = (datetime.now() - invoice.invoice_due).days
+    # Calculate days overdue
+    from app.utils.datetime_utils import get_current_timezone
+    current_time = get_current_timezone("Africa/Lagos")
+    days_overdue = (current_time - invoice.invoice_due).days
 
+    # Determine subject line based on urgency
     if days_overdue <= 7:
         subject = f"Friendly Reminder - Invoice {invoice.invoice_no} Due"
     elif days_overdue <= 30:
@@ -273,28 +305,37 @@ def send_payment_reminder(invoice_id: int, db: Session) -> str:
     else:
         subject = f"Urgent: Invoice {invoice.invoice_no} {days_overdue} Days Overdue"
 
-    html = f"""
-    <html>
-        <body>
-            <p>Dear {invoice.client.name},</p>
-            <p>This is a reminder that invoice {invoice.invoice_no} is now <strong>{days_overdue} days overdue</strong>.</p>
-            <p><strong>Invoice Details:</strong></p>
-            <ul>
-                <li>Invoice Number: {invoice.invoice_no}</li>
-                <li>Original Due Date: {invoice.invoice_due.strftime('%B %d, %Y')}</li>
-                <li>Amount Due: {remaining}</li>
-            </ul>
-            <p>Please remit payment at your earliest convenience.</p>
-            <p>If you have already sent payment, please disregard this notice.</p>
-            <p>Thank you for your attention to this matter.</p>
-        </body>
-    </html>
-    """
+    # Prepare template context
+    context = {
+        'company_name': settings.EMAIL_FROM_NAME,
+        'current_year': datetime.now().year,
+        'client_name': invoice.client.name,
+        'invoice_number': invoice.invoice_no,
+        'invoice_date': invoice.date_value.strftime('%B %d, %Y'),
+        'due_date': invoice.invoice_due.strftime('%B %d, %Y'),
+        'days_overdue': days_overdue,
+        'amount_due': f"{remaining:,.2f}",
+    }
 
+    # Render email template
+    html = render_email_template('payment_reminder.html', context)
+
+    # Send email
     email_id = send_email(
         to=invoice.client.email,
         subject=subject,
         html=html
+    )
+
+    logger.info(
+        "Payment reminder sent",
+        extra={
+            'invoice_id': invoice_id,
+            'invoice_no': invoice.invoice_no,
+            'email_id': email_id,
+            'days_overdue': days_overdue,
+            'amount_due': float(remaining)
+        }
     )
 
     return email_id

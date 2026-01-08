@@ -1,3 +1,4 @@
+from decimal import Decimal
 import logging
 import os
 
@@ -30,7 +31,8 @@ def generate_invoice_pdf(invoice_id: int, db: Session) -> bytes:
     invoice = db.query(Invoice)\
         .options(
             joinedload(Invoice.client),
-            joinedload(Invoice.items)
+            joinedload(Invoice.items),
+            joinedload(Invoice.payments)
     )\
         .filter(Invoice.id == invoice_id)\
         .first()
@@ -41,6 +43,27 @@ def generate_invoice_pdf(invoice_id: int, db: Session) -> bytes:
 
     total = calculate_invoice_totals(invoice)
 
+    total_paid = Decimal('0.00')
+    payment_history = []
+
+    for payment in invoice.payments:
+        # Only count non-cancelled payments
+        from app.models.payment import PaymentStatus
+        if payment.status != PaymentStatus.CANCELLED:
+            total_paid += payment.amount_paid
+            payment_history.append({
+                'date': payment.payment_date.strftime("%d %B %Y"),
+                'amount': payment.amount_paid,
+                'method': payment.payment_mode.replace('_', ' ').title(),
+                'reference': payment.reference_number or 'N/A'
+            })
+
+    # Calculate remaining balance
+    remaining_balance = total['vat_total'] - total_paid
+
+    # Add to template context
+    has_payments = len(payment_history) > 0
+
     issue_date = invoice.date_value.strftime("%d %B %Y")
     due_date = invoice.invoice_due.strftime("%d %B %Y")
 
@@ -50,7 +73,11 @@ def generate_invoice_pdf(invoice_id: int, db: Session) -> bytes:
         invoice=invoice,
         issue_date=issue_date,
         due_date=due_date,
-        total=total
+        total=total,
+        has_payments=has_payments,
+        payment_history=payment_history,
+        total_paid=total_paid,
+        remaining_balance=remaining_balance
     )
 
     buffer = BytesIO()

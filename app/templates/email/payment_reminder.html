@@ -1,0 +1,435 @@
+{% extends "base.html" %} {% block title %}Payment Reminder - {{ invoice_number
+}}{% endblock %} {% block content %}
+
+<!-- Urgency Indicator (color-coded by severity) -->
+<table
+  role="presentation"
+  cellspacing="0"
+  cellpadding="0"
+  border="0"
+  width="100%"
+>
+  <tr>
+    <td style="text-align: center; padding-bottom: 20px">
+      <!-- Warning icon -->
+      <div
+        style="
+          display: inline-block;
+          width: 64px;
+          height: 64px;
+          line-height: 64px;
+          background-color: #fff3cd;
+          border-radius: 50%;
+          color: #856404;
+          font-size: 32px;
+          font-weight: bold;
+        "
+      >
+        ⚠
+      </div>
+    </td>
+  </tr>
+</table>
+
+<!-- Subject Header -->
+<table
+  role="presentation"
+  cellspacing="0"
+  cellpadding="0"
+  border="0"
+  width="100%"
+>
+  <tr>
+    <td style="padding-bottom: 10px; text-align: center">
+      <h2
+        style="
+          margin: 0;
+          color: #dc3545;
+          font-size: 24px;
+          font-weight: 600;
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+            Arial, sans-serif;
+        "
+      >
+        Payment Reminder
+      </h2>
+    </td>
+  </tr>
+  <tr>
+    <td style="padding-bottom: 30px; text-align: center">
+      <p
+        style="
+          margin: 0;
+          color: #495057;
+          font-size: 16px;
+          line-height: 24px;
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+            Arial, sans-serif;
+        "
+      >
+        Dear <strong style="color: #212529">{{ client_name }}</strong>,
+      </p>
+    </td>
+  </tr>
+</table>
+
+<!-- Main message (dynamic based on urgency) -->
+<table
+  role="presentation"
+  cellspacing="0"
+  cellpadding="0"
+  border="0"
+  width="100%"
+>
+  <tr>
+    <td style="padding-bottom: 30px">
+      <p
+        style="
+          margin: 0 0 20px;
+          color: #212529;
+          font-size: 16px;
+          line-height: 24px;
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+            Arial, sans-serif;
+        "
+      >
+        This is a reminder that invoice <strong>{{ invoice_number }}</strong> is
+        now
+        <strong style="color: #dc3545">{{ days_overdue }} days overdue</strong>.
+      </p>
+      <p
+        style="
+          margin: 0;
+          color: #495057;
+          font-size: 16px;
+          line-height: 24px;
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+            Arial, sans-serif;
+        "
+      >
+        We kindly request that you remit payment at your earliest convenience to
+        avoid any service interruptions.
+      </p>
+    </td>
+  </tr>
+</table>
+
+<!-- Invoice Details Card (prominent/urgent styling) -->
+<table
+  role="presentation"
+  cellspacing="0"
+  cellpadding="0"
+  border="0"
+  width="100%"
+  style="
+    margin-bottom: 30px;
+    background-color: #fff3cd;
+    border-radius: 6px;
+    border: 2px solid #ffc107;
+  "
+>
+  <tr>
+    <td style="padding: 24px">
+      <!-- Card Header -->
+      <table
+        role="presentation"
+        cellspacing="0"
+        cellpadding="0"
+        border="0"
+        width="100%"
+      >
+        <tr>
+          <td style="padding-bottom: 16px; border-bottom: 2px solid #ffc107">
+            <h3
+              style="
+                margin: 0;
+                color: #856404;
+                font-size: 16px;
+                font-weight: 600;
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI',
+                  Roboto, Arial, sans-serif;
+              "
+            >
+              Invoice Details
+            </h3>
+          </td>
+        </tr>
+      </table>
+
+      <!-- Details -->
+      <table
+        role="presentation"
+        cellspacing="0"
+        cellpadding="0"
+        border="0"
+        width="100%"
+        style="margin-top: 16px"
+      >
+        <!-- Invoice Number -->
+        <tr>
+          <td
+            style="
+              padding: 10px 0;
+              color: #856404;
+              font-size: 14px;
+              line-height: 20px;
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+                Arial, sans-serif;
+            "
+            width="40%"
+          >
+            Invoice Number:
+          </td>
+          <td
+            style="
+              padding: 10px 0;
+              color: #212529;
+              font-size: 14px;
+              line-height: 20px;
+              font-weight: 600;
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+                Arial, sans-serif;
+            "
+          >
+            {{ invoice_number }}
+          </td>
+        </tr>
+
+        <!-- Original Due Date -->
+        <tr>
+          <td
+            style="
+              padding: 10px 0;
+              color: #856404;
+              font-size: 14px;
+              line-height: 20px;
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+                Arial, sans-serif;
+            "
+          >
+            Original Due Date:
+          </td>
+          <td
+            style="
+              padding: 10px 0;
+              color: #dc3545;
+              font-size: 14px;
+              line-height: 20px;
+              font-weight: 600;
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+                Arial, sans-serif;
+            "
+          >
+            {{ due_date }}
+          </td>
+        </tr>
+
+        <!-- Days Overdue (prominent) -->
+        <tr>
+          <td
+            style="
+              padding: 10px 0;
+              color: #856404;
+              font-size: 14px;
+              line-height: 20px;
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+                Arial, sans-serif;
+            "
+          >
+            Days Overdue:
+          </td>
+          <td
+            style="
+              padding: 10px 0;
+              color: #dc3545;
+              font-size: 18px;
+              line-height: 26px;
+              font-weight: 700;
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+                Arial, sans-serif;
+            "
+          >
+            {{ days_overdue }} days
+          </td>
+        </tr>
+
+        <!-- Divider -->
+        <tr>
+          <td colspan="2" style="padding: 8px 0">
+            <div style="border-top: 1px solid #ffc107"></div>
+          </td>
+        </tr>
+
+        <!-- Amount Due (largest, most prominent) -->
+        <tr>
+          <td
+            style="
+              padding: 10px 0;
+              color: #856404;
+              font-size: 14px;
+              line-height: 20px;
+              font-weight: 600;
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+                Arial, sans-serif;
+            "
+          >
+            Amount Due:
+          </td>
+          <td
+            style="
+              padding: 10px 0;
+              color: #dc3545;
+              font-size: 22px;
+              line-height: 30px;
+              font-weight: 700;
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+                Arial, sans-serif;
+            "
+          >
+            ₦{{ amount_due }}
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>
+
+<!-- Payment Instructions (optional, customize for your business) -->
+<table
+  role="presentation"
+  cellspacing="0"
+  cellpadding="0"
+  border="0"
+  width="100%"
+  style="
+    margin-bottom: 30px;
+    background-color: #f8f9fa;
+    border-radius: 6px;
+    border: 1px solid #e9ecef;
+  "
+>
+  <tr>
+    <td style="padding: 20px">
+      <h3
+        style="
+          margin: 0 0 12px;
+          color: #212529;
+          font-size: 16px;
+          font-weight: 600;
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+            Arial, sans-serif;
+        "
+      >
+        Payment Instructions
+      </h3>
+      <p
+        style="
+          margin: 0 0 10px;
+          color: #495057;
+          font-size: 14px;
+          line-height: 20px;
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+            Arial, sans-serif;
+        "
+      >
+        Please remit payment via:
+      </p>
+      <ul
+        style="
+          margin: 0;
+          padding-left: 20px;
+          color: #495057;
+          font-size: 14px;
+          line-height: 22px;
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+            Arial, sans-serif;
+        "
+      >
+        <li>Bank transfer to our account</li>
+        <li>Check payable to {{ company_name }}</li>
+        <li>Online payment portal (if available)</li>
+      </ul>
+    </td>
+  </tr>
+</table>
+
+<!-- Grace period notice -->
+<table
+  role="presentation"
+  cellspacing="0"
+  cellpadding="0"
+  border="0"
+  width="100%"
+>
+  <tr>
+    <td style="padding-bottom: 20px">
+      <p
+        style="
+          margin: 0;
+          color: #495057;
+          font-size: 14px;
+          line-height: 20px;
+          font-style: italic;
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+            Arial, sans-serif;
+        "
+      >
+        If you have already sent payment, please disregard this notice and
+        accept our thanks.
+      </p>
+    </td>
+  </tr>
+</table>
+
+<!-- Closing -->
+<table
+  role="presentation"
+  cellspacing="0"
+  cellpadding="0"
+  border="0"
+  width="100%"
+>
+  <tr>
+    <td style="padding-top: 10px; border-top: 1px solid #e9ecef">
+      <p
+        style="
+          margin: 20px 0 0;
+          color: #212529;
+          font-size: 16px;
+          line-height: 24px;
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+            Arial, sans-serif;
+        "
+      >
+        Thank you for your attention to this matter.
+      </p>
+      <p
+        style="
+          margin: 10px 0 0;
+          color: #6c757d;
+          font-size: 14px;
+          line-height: 20px;
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+            Arial, sans-serif;
+        "
+      >
+        If you have questions about this invoice or need to discuss payment
+        arrangements, please contact us immediately.
+      </p>
+      <p
+        style="
+          margin: 20px 0 0;
+          color: #6c757d;
+          font-size: 14px;
+          line-height: 20px;
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+            Arial, sans-serif;
+        "
+      >
+        <em>{{ company_name }} Team</em>
+      </p>
+    </td>
+  </tr>
+</table>
+
+{% endblock %}

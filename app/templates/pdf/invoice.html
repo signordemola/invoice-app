@@ -22,7 +22,7 @@
       }
 
       .header-left {
-        width: 60%;
+        width: 10cm;
       }
       .logo {
         height: 50px;
@@ -43,6 +43,12 @@
       .recipient {
         margin-bottom: 1cm;
       }
+      .balance-due-positive {
+        color: #dc3545;
+      }
+      .balance-due-negative {
+        color: #28a745;
+      }
       table {
         width: 100%;
         border-collapse: collapse;
@@ -61,7 +67,7 @@
         font-weight: 600;
       }
       .totals {
-        width: 40%;
+        width: 6cm;
         float: right;
         margin-bottom: 0.5cm;
       }
@@ -76,7 +82,7 @@
         page-break-inside: avoid;
       }
       .sender-details {
-        width: 48%;
+        width: 7.5cm;
       }
       .notes {
         clear: both;
@@ -90,7 +96,7 @@
       <div class="header-left">
         <img
           class="logo"
-          src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='150' height='50'%3E%3Crect width='150' height='50' fill='%232c3e50'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='Arial' font-size='16' fill='white'%3ELOGO%3C/text%3E%3C/svg%3E"
+          src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZD0iTTEyIDJMMiAyMmgyMHoiLz48L3N2Zz4="
           alt="Company Logo"
         />
         <div class="company-info">
@@ -120,11 +126,11 @@
     <table>
       <thead>
         <tr>
-          <th style="width: 5%">#</th>
+          <th style="width: 0.8cm">#</th>
           <th>Description</th>
-          <th style="width: 10%; text-align: right">Qty</th>
-          <th style="width: 15%; text-align: right">Rate</th>
-          <th style="width: 15%; text-align: right">Amount</th>
+          <th style="width: 1.6cm; text-align: right">Qty</th>
+          <th style="width: 2.4cm; text-align: right">Rate</th>
+          <th style="width: 2.4cm; text-align: right">Amount</th>
         </tr>
       </thead>
       <tbody>
@@ -166,6 +172,72 @@
         </tr>
       </table>
     </div>
+
+    {% if has_payments %}
+    <div style="clear: both; margin-top: 1cm; margin-bottom: 1cm">
+      <h3
+        style="
+          font-size: 16px;
+          margin-bottom: 0.5cm;
+          border-bottom: 2px solid #333;
+          padding-bottom: 0.2cm;
+        "
+      >
+        Payment History
+      </h3>
+
+      <table style="margin-bottom: 0.5cm">
+        <thead>
+          <tr>
+            <th style="width: 3cm">Date</th>
+            <th>Method</th>
+            <th style="width: 3cm">Reference</th>
+            <th style="width: 3cm; text-align: right">Amount</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for payment in payment_history %}
+          <tr>
+            <td>{{ payment.date }}</td>
+            <td>{{ payment.method }}</td>
+            <td>{{ payment.reference }}</td>
+            <td style="text-align: right">
+              {{ "%.2f"|format(payment.amount) }}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+
+      <!-- Payment Summary -->
+      <div style="width: 6cm; float: right; margin-bottom: 0.5cm">
+        <table style="border-top: 2px solid #333">
+          <tr>
+            <td><strong>Grand Total:</strong></td>
+            <td style="text-align: right">
+              <strong>{{ "%.2f"|format(total.vat_total) }}</strong>
+            </td>
+          </tr>
+          <tr>
+            <td>Total Paid:</td>
+            <td style="text-align: right; color: #28a745">
+              {{ "%.2f"|format(total_paid) }}
+            </td>
+          </tr>
+          <tr style="border-top: 2px solid #333">
+            <td><strong>Balance Due:</strong></td>
+            <td
+              style="text-align: right"
+              class="{% if remaining_balance > 0 %}balance-due-positive{% else %}balance-due-negative{% endif %}"
+            >
+              <strong>{{ "%.2f"|format(remaining_balance) }}</strong>
+            </td>
+          </tr>
+        </table>
+      </div>
+      <div style="clear: both"></div>
+    </div>
+    {% endif %}
 
     <div class="bottom-container">
       <div class="sender-details">
