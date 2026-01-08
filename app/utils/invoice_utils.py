@@ -216,3 +216,160 @@ def track_invoice_view(invoice: Invoice) -> None:
 def calculate_due_date(invoice_date: datetime, payment_terms_days: int = 30) -> datetime:
     """Calculate invoice due date based on payment terms."""
     return invoice_date + timedelta(days=payment_terms_days)
+
+
+def normalize_datetime(dt: datetime, timezone: str = "Africa/Lagos") -> datetime:
+    """
+    Normalize datetime to timezone-aware format.
+
+    If datetime is naive (no timezone), assume it's in the specified timezone.
+    If datetime is aware, convert it to the specified timezone.
+
+    Args:
+        dt: Datetime to normalize (naive or aware)
+        timezone: Target timezone (default: Africa/Lagos)
+
+    Returns:
+        Timezone-aware datetime in specified timezone
+    """
+    from app.utils.datetime_utils import get_timezone
+
+    tz = get_timezone(timezone)
+
+    if dt.tzinfo is None:
+        # Naive datetime - assume it's in target timezone
+        return dt.replace(tzinfo=tz)
+    else:
+        # Aware datetime - convert to target timezone
+        return dt.astimezone(tz)
+
+
+def calculate_days_overdue(
+    invoice_due: datetime,
+    current_time: datetime,
+    timezone: str = "Africa/Lagos"
+) -> int:
+    """
+    Calculate days overdue for an invoice.
+
+    Handles both naive and timezone-aware datetimes by normalizing to same timezone.
+    Returns positive number if overdue, 0 if not yet due.
+
+    Args:
+        invoice_due: Invoice due date (naive or aware)
+        current_time: Current datetime (naive or aware)
+        timezone: Timezone for comparison (default: Africa/Lagos)
+
+    Returns:
+        Days overdue (0 if not overdue)
+
+    Example:
+        Due date: 2026-01-01 (naive)
+        Current: 2026-01-10 14:30 WAT (aware)
+        Returns: 9 (overdue by 9 days)
+    """
+    # Normalize both datetimes to same timezone
+    due_aware = normalize_datetime(invoice_due, timezone)
+    current_aware = normalize_datetime(current_time, timezone)
+
+    # Calculate difference
+    delta = (current_aware - due_aware).days
+
+    # Return 0 if not yet overdue (negative days)
+    return max(0, delta)
+
+
+def is_invoice_overdue(
+    invoice_due: datetime,
+    current_time: datetime,
+    timezone: str = "Africa/Lagos"
+) -> bool:
+    """
+    Check if invoice is past its due date.
+
+    Handles both naive and timezone-aware datetimes.
+
+    Args:
+        invoice_due: Invoice due date (naive or aware)
+        current_time: Current datetime (naive or aware)
+        timezone: Timezone for comparison (default: Africa/Lagos)
+
+    Returns:
+        True if overdue, False otherwise
+    """
+    # Normalize both datetimes to same timezone
+    due_aware = normalize_datetime(invoice_due, timezone)
+    current_aware = normalize_datetime(current_time, timezone)
+
+    return current_aware > due_aware
+
+
+def should_send_reminder(
+    invoice,
+    current_time: datetime,
+    timezone: str = "Africa/Lagos"
+) -> tuple[bool, str]:
+    """
+    Determine if a payment reminder should be sent for an invoice.
+
+    Handles timezone-aware and naive datetimes properly.
+
+    Business Rules:
+    1. Invoice must be overdue (past due date)
+    2. Invoice must NOT be paid or cancelled
+    3. Reminders must be enabled for invoice
+    4. Reminder frequency must be set
+    5. Sufficient time passed since last reminder
+
+    Args:
+        invoice: Invoice model instance
+        current_time: Current datetime (naive or aware)
+        timezone: Timezone for comparison (default: Africa/Lagos)
+
+    Returns:
+        (should_send: bool, reason: str)
+    """
+    from app.models.invoice import InvoiceStatus
+
+    # Rule 1: Must be overdue
+    if not is_invoice_overdue(invoice.invoice_due, current_time, timezone):
+        return False, "Invoice not yet due"
+
+    # Rule 2: Must not be paid or cancelled
+    if invoice.status in (InvoiceStatus.PAID, InvoiceStatus.CANCELLED):
+        return False, f"Invoice status is {invoice.status.value}"
+
+    # Rule 3: Reminders must be enabled
+    if not invoice.send_reminders:
+        return False, "Reminders disabled for this invoice"
+
+    # Rule 4: Reminder frequency must be set
+    if invoice.reminder_frequency is None:
+        return False, "No reminder frequency configured"
+
+    # Rule 5: Check frequency timing
+    if not invoice.reminder_logs:
+        return True, "First reminder"
+
+    last_sent_str = invoice.reminder_logs.get('last_sent')
+    if not last_sent_str:
+        return True, "No previous reminder recorded"
+
+    try:
+        # Parse last_sent datetime (might be naive or aware)
+        last_sent = datetime.fromisoformat(last_sent_str)
+
+        # Normalize both datetimes for comparison
+        last_sent_aware = normalize_datetime(last_sent, timezone)
+        current_aware = normalize_datetime(current_time, timezone)
+
+        days_since_last = (current_aware - last_sent_aware).days
+
+        if days_since_last >= invoice.reminder_frequency:
+            return True, f"Frequency met ({days_since_last} days since last)"
+        else:
+            return False, f"Frequency not met ({days_since_last}/{invoice.reminder_frequency} days)"
+
+    except (ValueError, TypeError) as e:
+        # Invalid date format - send anyway
+        return True, f"Invalid last_sent date: {e}"

@@ -267,6 +267,15 @@ def send_payment_confirmation(payment_id: int, db: Session) -> str:
 def send_payment_reminder(invoice_id: int, db: Session) -> str:
     """Send payment reminder email for overdue invoice using Jinja2 template."""
 
+    from app.models.invoice import Invoice
+    from app.models.payment import PaymentStatus
+    from app.utils.datetime_utils import get_current_timezone
+    from app.utils.invoice_utils import (
+        calculate_invoice_totals,
+        calculate_days_overdue,
+        is_invoice_overdue
+    )
+
     invoice = db.query(Invoice)\
         .options(
             joinedload(Invoice.client),
@@ -279,11 +288,20 @@ def send_payment_reminder(invoice_id: int, db: Session) -> str:
     if not invoice:
         raise EmailServiceError(f"Invoice with id {invoice_id} not found")
 
+    # Get current time (timezone-aware)
+    current_time = get_current_timezone("Africa/Lagos")
+
+    # Validate invoice is actually overdue (handles naive/aware comparison)
+    if not is_invoice_overdue(invoice.invoice_due, current_time, "Africa/Lagos"):
+        raise EmailServiceError(
+            f"Invoice {invoice.invoice_no} is not overdue yet. "
+            f"Due date: {invoice.invoice_due}, Current: {current_time}"
+        )
+
     # Calculate invoice totals
     totals = calculate_invoice_totals(invoice)
 
     # Calculate total paid (sum all non-cancelled payments)
-    from app.models.payment import PaymentStatus
     total_paid = sum(
         p.amount_paid for p in invoice.payments
         if p.status != PaymentStatus.CANCELLED
@@ -292,10 +310,12 @@ def send_payment_reminder(invoice_id: int, db: Session) -> str:
     # Calculate remaining balance
     remaining = totals['vat_total'] - total_paid
 
-    # Calculate days overdue
-    from app.utils.datetime_utils import get_current_timezone
-    current_time = get_current_timezone("Africa/Lagos")
-    days_overdue = (current_time - invoice.invoice_due).days
+    # Calculate days overdue (handles naive/aware comparison)
+    days_overdue = calculate_days_overdue(
+        invoice.invoice_due,
+        current_time,
+        "Africa/Lagos"
+    )
 
     # Determine subject line based on urgency
     if days_overdue <= 7:

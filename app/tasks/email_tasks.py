@@ -254,25 +254,13 @@ def send_payment_confirmation_task(self: Task, payment_id: int) -> dict:
 @celery_app.task(
     bind=True,
     name='email.send_overdue_reminders',
-    time_limit=600,  # 10 minutes max
-    soft_time_limit=540,  # 9 minutes soft limit
+    time_limit=600,
+    soft_time_limit=540,
     acks_late=True,
 )
 def send_overdue_reminders_task(self: Task) -> dict:
-    """
-    Scheduled task: Send payment reminders for overdue invoices.
+    """Scheduled task: Send payment reminders for overdue invoices."""
 
-    Runs daily via Celery Beat scheduler. Queries for overdue invoices
-    and sends reminder emails respecting reminder_frequency settings.
-
-    Official pattern for batch processing tasks:
-    - Processes invoices in batches
-    - Tracks success/failure counts
-    - Time-limited execution
-
-    Returns:
-        Dict with processing statistics
-    """
     from datetime import datetime
     from app.models.invoice import Invoice, InvoiceStatus
     from app.services.email_service import (
@@ -280,77 +268,50 @@ def send_overdue_reminders_task(self: Task) -> dict:
         EmailServiceError
     )
     from app.utils.datetime_utils import get_current_timezone
+    from app.utils.invoice_utils import should_send_reminder, normalize_datetime
 
     logger.info(
         "Starting scheduled overdue reminders task",
         extra={"task_id": self.request.id}
     )
 
-    # Create DB session
     db_gen = get_task_db_session()
     db = next(db_gen)
 
     stats = {
-        "total_overdue": 0,
+        "total_checked": 0,
         "reminders_sent": 0,
         "reminders_skipped": 0,
         "reminders_failed": 0,
+        "skip_reasons": {},
         "errors": []
     }
 
     try:
+        # Get current time (timezone-aware)
         current_time = get_current_timezone("Africa/Lagos")
 
-        # Query overdue invoices that have reminders enabled
-        overdue_invoices = db.query(Invoice).filter(
-            Invoice.status == InvoiceStatus.OVERDUE,
+        # Query invoices that MIGHT need reminders
+        candidate_invoices = db.query(Invoice).filter(
+            Invoice.status.notin_(
+                [InvoiceStatus.PAID, InvoiceStatus.CANCELLED]),
             Invoice.send_reminders == True,
-            Invoice.reminder_frequency.isnot(None)
+            Invoice.reminder_frequency.isnot(None),
+            Invoice.invoice_due < current_time  # Database comparison
         ).all()
 
-        stats["total_overdue"] = len(overdue_invoices)
+        stats["total_checked"] = len(candidate_invoices)
 
-        logger.info(
-            f"Found {stats['total_overdue']} overdue invoices with reminders enabled"
-        )
+        logger.info(f"Found {stats['total_checked']} candidate invoices")
 
-        for invoice in overdue_invoices:
+        for invoice in candidate_invoices:
             try:
-                # Type safety: reminder_frequency already filtered for not None
-                reminder_frequency = invoice.reminder_frequency
-                if reminder_frequency is None:
-                    # Skip if somehow None (defensive programming)
-                    stats["reminders_skipped"] += 1
-                    continue
-
-                # Check if reminder should be sent based on frequency
-                should_send = False
-
-                # Type safety: Check reminder_logs structure
-                if not invoice.reminder_logs:
-                    # Never sent before - send now
-                    should_send = True
-                else:
-                    last_sent_str = invoice.reminder_logs.get('last_sent')
-
-                    if last_sent_str is None:
-                        # No last_sent recorded - send now
-                        should_send = True
-                    else:
-                        # Type safety: last_sent_str is definitely str here
-                        try:
-                            last_sent = datetime.fromisoformat(last_sent_str)
-                            days_since_last = (current_time - last_sent).days
-
-                            # Type safety: reminder_frequency is int here
-                            if days_since_last >= reminder_frequency:
-                                should_send = True
-                        except (ValueError, TypeError) as e:
-                            # Invalid date format - log and send anyway
-                            logger.warning(
-                                f"Invalid last_sent date for invoice {invoice.id}: {str(e)}"
-                            )
-                            should_send = True
+                # Apply business rules (handles naive/aware comparison)
+                should_send, reason = should_send_reminder(
+                    invoice,
+                    current_time,
+                    "Africa/Lagos"  # ← Added timezone parameter
+                )
 
                 if should_send:
                     # Send reminder email
@@ -359,7 +320,7 @@ def send_overdue_reminders_task(self: Task) -> dict:
                         db=db
                     )
 
-                    # Update reminder logs
+                    # Update reminder logs with timezone-aware timestamp
                     if not invoice.reminder_logs:
                         invoice.reminder_logs = {}
 
@@ -374,36 +335,33 @@ def send_overdue_reminders_task(self: Task) -> dict:
 
                     logger.info(
                         f"Reminder sent for invoice {invoice.invoice_no}",
-                        extra={
-                            "invoice_id": invoice.id,
-                            "email_id": email_id
-                        }
+                        extra={"invoice_id": invoice.id, "email_id": email_id}
                     )
                 else:
                     stats["reminders_skipped"] += 1
+                    stats["skip_reasons"][reason] = stats["skip_reasons"].get(
+                        reason, 0) + 1
+
                     logger.debug(
-                        f"Skipping reminder for invoice {invoice.invoice_no} - frequency not met"
+                        f"Skipping reminder for invoice {invoice.invoice_no}: {reason}"
                     )
 
             except EmailServiceError as e:
                 stats["reminders_failed"] += 1
                 stats["errors"].append({
                     "invoice_id": invoice.id,
+                    "invoice_no": invoice.invoice_no,
                     "error": str(e)
                 })
                 logger.error(
                     f"Failed to send reminder for invoice {invoice.id}: {str(e)}",
                     exc_info=True
                 )
-                # Continue with next invoice
                 continue
 
         logger.info(
             "Overdue reminders task completed",
-            extra={
-                "task_id": self.request.id,
-                "stats": stats
-            }
+            extra={"task_id": self.request.id, "stats": stats}
         )
 
         return stats
@@ -417,7 +375,6 @@ def send_overdue_reminders_task(self: Task) -> dict:
         raise
 
     finally:
-        # Cleanup DB session
         try:
             next(db_gen, None)
         except StopIteration:

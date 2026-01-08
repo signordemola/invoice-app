@@ -129,9 +129,11 @@ def create_invoice(
         invoice_dict = invoice_data.model_dump(exclude={"items"})
         invoice = Invoice(**invoice_dict)
 
-        current_date = get_current_timezone("Africa/Lagos")
-        invoice.invoice_due = calculate_due_date(
-            current_date, payment_terms_days)
+        if not invoice.invoice_due:
+            current_date = get_current_timezone("Africa/Lagos")
+            invoice.invoice_due = calculate_due_date(
+                current_date, payment_terms_days
+            )
 
         db.add(invoice)
         db.flush()
@@ -168,10 +170,8 @@ def create_invoice(
         )
 
         if auto_generate_pdf and auto_send_email:
-            # Import celery_app at function level to avoid circular imports
             from app.core.celery_app import celery_app
 
-            # Use composite task for both operations
             celery_app.send_task(
                 'invoice.generate_and_send',
                 args=[invoice.id]
