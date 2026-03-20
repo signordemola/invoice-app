@@ -50,4 +50,5 @@ def get_current_user(request: Request, db: Session = Depends(get_db)) -> User:
     if user is None:
         raise credentials_exception
 
+    request.state.user = user
     return user

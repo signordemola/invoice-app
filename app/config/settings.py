@@ -6,6 +6,8 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 load_dotenv()
 
+LOCAL_ALLOWED_HOSTS = "localhost,127.0.0.1,::1,0.0.0.0,testserver"
+
 
 class Settings(BaseSettings):
     """Application settings using pydantic"""
@@ -70,17 +72,21 @@ class Settings(BaseSettings):
     SECRET_KEY: str = Field(default="dev-secret-key-change-in-production")
     ALGORITHM: str = Field(default="HS256")
     ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(
-        default=1440, validation_alias="ACCESS_TOKEN_EXPIRE_MINUTES")
+        default=60, validation_alias="ACCESS_TOKEN_EXPIRE_MINUTES")
     ACCESS_TOKEN_EXPIRATION: int = Field(
-        60 * 24, validation_alias="ACCESS_TOKEN_EXPIRATION")
+        60, validation_alias="ACCESS_TOKEN_EXPIRATION")
     REFRESH_TOKEN_EXPIRATION: int = Field(
         60 * 24 * 7, validation_alias="REFRESH_TOKEN_EXPIRATION")
 
     # Cookie Settings
     COOKIE_NAME: str = Field(default="access_token")
+    REFRESH_COOKIE_NAME: str = Field(default="refresh_token")
+    CSRF_COOKIE_NAME: str = Field(default="csrf_token")
+    CSRF_HEADER_NAME: str = Field(default="X-CSRF-Token")
     COOKIE_HTTPONLY: bool = Field(default=True)
-    COOKIE_SECURE: bool = Field(default=False)
-    COOKIE_SAMESITE: Literal["lax", "strict", "none"] = Field(default="lax")
+    COOKIE_SECURE: bool = Field(default=True)
+    COOKIE_SAMESITE: Literal["lax", "strict", "none"] = Field(default="strict")
+    ALLOWED_HOSTS: str = Field(default=LOCAL_ALLOWED_HOSTS)
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -99,24 +105,55 @@ class Settings(BaseSettings):
 
     @computed_field
     @property
+    def access_cookie_max_age(self) -> int:
+        """Calculate access-token cookie max age in seconds."""
+        return self.ACCESS_TOKEN_EXPIRATION * 60
+
+    @computed_field
+    @property
+    def refresh_cookie_max_age(self) -> int:
+        """Calculate refresh-token cookie max age in seconds."""
+        return self.REFRESH_TOKEN_EXPIRATION * 60
+
+    @computed_field
+    @property
     def cookie_max_age(self) -> int:
-        """Calculate cookie max age in seconds from token expiration minutes"""
-        return self.ACCESS_TOKEN_EXPIRE_MINUTES * 60
+        """Backward-compatible access-token cookie max age."""
+        return self.access_cookie_max_age
+
+    @computed_field
+    @property
+    def allowed_hosts_list(self) -> list[str]:
+        """Parse allowed hosts from a comma-separated string."""
+        return [host.strip() for host in self.ALLOWED_HOSTS.split(",") if host.strip()]
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-        if self.ENV == "production":
+        env = self.ENV.lower()
+        is_local_env = env in {"development", "dev", "local", "test"}
+
+        if not is_local_env:
             if self.SECRET_KEY == "dev-secret-key-change-in-production":
                 raise ValueError(
-                    "SECRET_KEY must be set in production! "
+                    "SECRET_KEY must be set outside local development! "
                     "Generate one with: python -c 'import secrets; print(secrets.token_urlsafe(32))'"
+                )
+
+            if len(self.SECRET_KEY) < 32:
+                raise ValueError(
+                    "SECRET_KEY must be at least 32 characters outside local development."
                 )
 
             if not self.COOKIE_SECURE:
                 raise ValueError(
-                    "COOKIE_SECURE must be True in production! "
+                    "COOKIE_SECURE must be True outside local development! "
                     "Set COOKIE_SECURE=True in your .env file."
+                )
+
+            if self.ALLOWED_HOSTS == LOCAL_ALLOWED_HOSTS:
+                raise ValueError(
+                    "ALLOWED_HOSTS must be configured outside local development."
                 )
 
 

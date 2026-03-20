@@ -32,7 +32,13 @@ def is_ip_exempt(ip: str) -> bool:
     return ip in exempt_ips
 
 
+def is_request_exempt(request: Request) -> bool:
+    """Check whether the incoming request should bypass rate limits."""
+    return is_ip_exempt(get_remote_address(request))
+
+
 limiter = Limiter(
     key_func=get_user_identifier,
-    default_limits=["100/minute"]
+    default_limits=["100/minute"],
+    headers_enabled=True
 )

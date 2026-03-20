@@ -1,11 +1,20 @@
-from fastapi import APIRouter, Depends, Response, status
+from fastapi import APIRouter, Depends, Request, Response, status
 from sqlalchemy.orm import Session
 
 from app.config import settings
+from app.core.exceptions import ForbiddenException, UnauthorizedException
+from app.core.rate_limit import is_request_exempt, limiter
+from app.core.security import verify_refresh_token
 from ....schemas.auth import LoginRequest
 from ....config.database import get_db
-from ....services.auth_service import authenticate_user, logout_user, register_user
 from ....models.user import User
+from ....services.auth_service import (
+    authenticate_user,
+    issue_auth_tokens,
+    logout_user,
+    register_user,
+    set_auth_cookies,
+)
 from ....schemas.user import UserCreate, UserResponse
 
 
@@ -13,24 +22,22 @@ router = APIRouter()
 
 
 @router.post('/login')
-def login_route(response: Response, credentials: LoginRequest, db: Session = Depends(get_db)):
+@limiter.limit("5/minute", exempt_when=is_request_exempt)
+def login_route(
+    request: Request,
+    response: Response,
+    credentials: LoginRequest,
+    db: Session = Depends(get_db)
+):
     """Login & get access token"""
 
-    token, user = authenticate_user(
+    access_token, refresh_token, user = authenticate_user(
         username=credentials.username,
         password=credentials.password,
         db=db
     )
 
-    response.set_cookie(
-        key=settings.COOKIE_NAME,
-        value=token,
-        httponly=settings.COOKIE_HTTPONLY,
-        secure=settings.COOKIE_SECURE,
-        samesite=settings.COOKIE_SAMESITE,
-        max_age=settings.cookie_max_age,
-        path="/"
-    )
+    set_auth_cookies(response, access_token, refresh_token)
 
     return {
         "message": "Login successful",
@@ -43,7 +50,12 @@ def login_route(response: Response, credentials: LoginRequest, db: Session = Dep
 
 
 @router.post('/register', response_model=UserResponse, status_code=status.HTTP_201_CREATED)
-def register_route(user_data: UserCreate, db: Session = Depends(get_db)):
+@limiter.limit("3/hour", exempt_when=is_request_exempt)
+def register_route(
+    request: Request,
+    user_data: UserCreate,
+    db: Session = Depends(get_db)
+):
     """Register a new user"""
 
     new_user = register_user(
@@ -55,8 +67,52 @@ def register_route(user_data: UserCreate, db: Session = Depends(get_db)):
     return new_user
 
 
+@router.post('/refresh')
+@limiter.limit("20/minute", exempt_when=is_request_exempt)
+def refresh_route(
+    request: Request,
+    response: Response,
+    db: Session = Depends(get_db)
+):
+    """Rotate access and refresh tokens using the refresh-token cookie."""
+
+    refresh_token = request.cookies.get(settings.REFRESH_COOKIE_NAME)
+    if not refresh_token:
+        raise UnauthorizedException(
+            message="Refresh token is missing",
+            code="REFRESH_TOKEN_MISSING"
+        )
+
+    user_id = verify_refresh_token(refresh_token)
+    if user_id is None:
+        raise UnauthorizedException(
+            message="Refresh token is invalid or expired",
+            code="INVALID_REFRESH_TOKEN"
+        )
+
+    user = db.query(User).filter(User.id == int(user_id)).first()
+    if not user:
+        raise UnauthorizedException(
+            message="Refresh token is invalid or expired",
+            code="INVALID_REFRESH_TOKEN"
+        )
+
+    if not user.is_active:
+        raise ForbiddenException(
+            message="Account is inactive. Please contact support.",
+            code="ACCOUNT_INACTIVE"
+        )
+
+    access_token, new_refresh_token = issue_auth_tokens(user)
+    set_auth_cookies(response, access_token, new_refresh_token)
+
+    return {"message": "Token refreshed"}
+
+
 @router.post('/logout')
-def logout_route():
+@limiter.limit("20/minute", exempt_when=is_request_exempt)
+def logout_route(request: Request, response: Response):
     """Logout a user"""
 
-    return logout_user()
+    logout_user(response)
+    return {"message": "Logged out successfully!"}

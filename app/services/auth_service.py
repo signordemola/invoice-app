@@ -1,6 +1,5 @@
 import logging
-from fastapi import status
-from fastapi.responses import JSONResponse
+from fastapi import Response
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 
@@ -8,13 +7,47 @@ from app.config import settings
 from app.core.exceptions import ConflictException, ForbiddenException, UnauthorizedException
 from app.services.database import transaction_scope
 from ..models.user import User
-from ..core.security import hash_password, verify_password, create_access_token
+from ..core.security import (
+    create_access_token,
+    create_refresh_token,
+    hash_password,
+    verify_password,
+)
 
 logger = logging.getLogger(__name__)
 
 
-def authenticate_user(username: str, password: str, db: Session) -> tuple[str, User]:
-    """Authenticate user and return JWT token"""
+def issue_auth_tokens(user: User) -> tuple[str, str]:
+    """Create a fresh access/refresh token pair for the user."""
+    access_token = create_access_token(data={"sub": str(user.id)})
+    refresh_token = create_refresh_token(data={"sub": str(user.id)})
+    return access_token, refresh_token
+
+
+def set_auth_cookies(response: Response, access_token: str, refresh_token: str) -> None:
+    """Attach access and refresh cookies to the outgoing response."""
+    response.set_cookie(
+        key=settings.COOKIE_NAME,
+        value=access_token,
+        httponly=settings.COOKIE_HTTPONLY,
+        secure=settings.COOKIE_SECURE,
+        samesite=settings.COOKIE_SAMESITE,
+        max_age=settings.access_cookie_max_age,
+        path="/"
+    )
+    response.set_cookie(
+        key=settings.REFRESH_COOKIE_NAME,
+        value=refresh_token,
+        httponly=settings.COOKIE_HTTPONLY,
+        secure=settings.COOKIE_SECURE,
+        samesite=settings.COOKIE_SAMESITE,
+        max_age=settings.refresh_cookie_max_age,
+        path="/"
+    )
+
+
+def authenticate_user(username: str, password: str, db: Session) -> tuple[str, str, User]:
+    """Authenticate user and return fresh auth tokens."""
 
     logger.info(f"Authentication attempt for username: {username}")
 
@@ -42,10 +75,10 @@ def authenticate_user(username: str, password: str, db: Session) -> tuple[str, U
             code="ACCOUNT_INACTIVE"
         )
 
-    token = create_access_token(data={"sub": str(user.id)})
+    access_token, refresh_token = issue_auth_tokens(user)
 
     logger.info(f"Authentication successful for user: {username}")
-    return token, user
+    return access_token, refresh_token, user
 
 
 def register_user(username: str, password: str, db: Session) -> User:
@@ -85,17 +118,25 @@ def register_user(username: str, password: str, db: Session) -> User:
         )
 
 
-def logout_user() -> dict:
-    """Clear the authentication cookie and log the user out."""
-
-    response = JSONResponse(
-        status_code=status.HTTP_204_NO_CONTENT, content=None)
-
+def logout_user(response: Response) -> None:
+    """Clear authentication and CSRF cookies on the outgoing response."""
     response.delete_cookie(
         key=settings.COOKIE_NAME,
-        httponly=True,
+        httponly=settings.COOKIE_HTTPONLY,
         secure=settings.COOKIE_SECURE,
-        samesite="strict"
+        samesite=settings.COOKIE_SAMESITE,
+        path="/"
     )
-
-    return {"message": "Logged out successfully!"}
+    response.delete_cookie(
+        key=settings.REFRESH_COOKIE_NAME,
+        httponly=settings.COOKIE_HTTPONLY,
+        secure=settings.COOKIE_SECURE,
+        samesite=settings.COOKIE_SAMESITE,
+        path="/"
+    )
+    response.delete_cookie(
+        key=settings.CSRF_COOKIE_NAME,
+        secure=settings.COOKIE_SECURE,
+        samesite=settings.COOKIE_SAMESITE,
+        path="/"
+    )
